@@ -11,6 +11,7 @@
 
 import { readFileSync } from 'fs';
 import type { AIProvider, Message } from './provider';
+import { parseModelList, separateSystemMessage } from './utils';
 
 interface GoogleVertexConfig {
   credentialsPath: string;
@@ -181,37 +182,11 @@ export class GoogleVertexProvider implements AIProvider {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseModelList(raw: string | undefined): string[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 function buildEndpointUrl(region: string, projectId: string, model: string): string {
   return (
     `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}` +
     `/locations/${region}/publishers/anthropic/models/${model}:rawPredict`
   );
-}
-
-function separateSystemMessage(messages: Message[]): {
-  systemPrompt: string | undefined;
-  conversationMessages: { role: 'user' | 'assistant'; content: string }[];
-} {
-  let systemPrompt: string | undefined;
-  const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = [];
-
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      systemPrompt = systemPrompt ? `${systemPrompt}\n${msg.content}` : msg.content;
-    } else {
-      conversationMessages.push({ role: msg.role, content: msg.content });
-    }
-  }
-
-  return { systemPrompt, conversationMessages };
 }
 
 function isServiceAccountKey(v: unknown): v is ServiceAccountKey {

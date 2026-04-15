@@ -9,13 +9,7 @@ import { AtsScoreCard } from "@/components/ats-score-card";
 import { KeywordsPanel } from "@/components/keywords-panel";
 import { SkillsChecklist } from "@/components/skills-checklist";
 import { SuggestionsPanel } from "@/components/suggestions-panel";
-import { BulletComparison } from "@/components/bullet-comparison";
-import { CoverLetterEditor } from "@/components/cover-letter-editor";
-
-interface Bullet {
-  original: string;
-  polished: string;
-}
+import { CvPreview } from "@/components/cv-preview";
 
 interface Skill {
   skill: string;
@@ -23,12 +17,13 @@ interface Skill {
 }
 
 interface PolishResult {
+  firstName?: string;
+  companyName?: string;
   atsScore?: number;
   topKeywords?: string[];
   mustHaveSkills?: Skill[];
-  polishedBullets: Bullet[];
+  polishedCV: string;
   suggestions: string[];
-  coverLetter?: string;
 }
 
 interface SessionData {
@@ -64,10 +59,8 @@ export default function ResultPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [bullets, setBullets] = useState<Bullet[]>([]);
-  const [coverLetter, setCoverLetter] = useState("");
+  const [polishedCV, setPolishedCV] = useState("");
   const [downloadingCv, setDownloadingCv] = useState(false);
-  const [downloadingCl, setDownloadingCl] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,14 +69,14 @@ export default function ResultPage() {
     async function fetchSession() {
       try {
         const response = await fetch(`/api/result/${id}`);
+        const data = (await response.json()) as SessionData & {
+          error?: string;
+        };
         if (!response.ok) {
-          const body = (await response.json()) as { error?: string };
-          throw new Error(body.error ?? "Failed to load result");
+          throw new Error(data.error ?? "Failed to load result");
         }
-        const data = (await response.json()) as SessionData;
         setSession(data);
-        setBullets(data.result.polishedBullets ?? []);
-        setCoverLetter(data.result.coverLetter ?? "");
+        setPolishedCV(data.result.polishedCV ?? "");
       } catch (err: unknown) {
         setFetchError(getErrorMessage(err));
       } finally {
@@ -101,14 +94,16 @@ export default function ResultPage() {
       const response = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "cv", content: JSON.stringify(bullets) }),
+        body: JSON.stringify({ type: "cv", content: polishedCV }),
       });
       if (!response.ok) {
         const body = (await response.json()) as { error?: string };
         throw new Error(body.error ?? "Download failed");
       }
       const blob = await response.blob();
-      await triggerDownload(blob, "cv-polished.docx");
+      const firstName = session?.result.firstName ?? "cv";
+      const company = session?.result.companyName ?? "polished";
+      await triggerDownload(blob, `${firstName}_${company}.docx`);
     } catch (err: unknown) {
       setDownloadError(getErrorMessage(err));
     } finally {
@@ -116,26 +111,13 @@ export default function ResultPage() {
     }
   }
 
-  async function handleDownloadCoverLetter() {
-    setDownloadingCl(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "cover-letter", content: coverLetter }),
-      });
-      if (!response.ok) {
-        const body = (await response.json()) as { error?: string };
-        throw new Error(body.error ?? "Download failed");
-      }
-      const blob = await response.blob();
-      await triggerDownload(blob, "cover-letter.docx");
-    } catch (err: unknown) {
-      setDownloadError(getErrorMessage(err));
-    } finally {
-      setDownloadingCl(false);
-    }
+  function handleCreateCoverLetter() {
+    sessionStorage.setItem(`cv-polished-${id}`, polishedCV);
+    sessionStorage.setItem(`cv-meta-${id}`, JSON.stringify({
+      firstName: session?.result.firstName ?? "",
+      companyName: session?.result.companyName ?? "",
+    }));
+    router.push(`/result/${id}/cover-letter`);
   }
 
   if (loading) {
@@ -211,20 +193,8 @@ export default function ResultPage() {
         <h2 className="text-xl font-semibold text-slate-800 mb-4">
           Polished CV
         </h2>
-        <BulletComparison bullets={bullets} onChange={setBullets} />
+        <CvPreview value={polishedCV} onChange={setPolishedCV} />
       </section>
-
-      {hasJd && coverLetter && (
-        <>
-          <Separator />
-          <section>
-            <h2 className="text-xl font-semibold text-slate-800 mb-4">
-              Cover Letter
-            </h2>
-            <CoverLetterEditor value={coverLetter} onChange={setCoverLetter} />
-          </section>
-        </>
-      )}
 
       <Separator />
 
@@ -233,13 +203,9 @@ export default function ResultPage() {
           {downloadingCv ? "Downloading..." : "Download CV (.docx)"}
         </Button>
 
-        {hasJd && coverLetter && (
-          <Button
-            variant="outline"
-            onClick={handleDownloadCoverLetter}
-            disabled={downloadingCl}
-          >
-            {downloadingCl ? "Downloading..." : "Download Cover Letter (.docx)"}
+        {hasJd && (
+          <Button variant="outline" onClick={handleCreateCoverLetter}>
+            Create Cover Letter
           </Button>
         )}
 

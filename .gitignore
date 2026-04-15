@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files - ignore all except the example template
 .env*
+!.env.local.example
 
 # vercel
 .vercel
@@ -47,6 +48,17 @@ yarn-error.log*
 
 # google credentials
 google-credentials.json
+
+# internal docs (not for public repo)
+PROJECT_SUMMARY.md
+
+# word documents (test files / downloaded outputs)
+*.docx
+~$*.docx
+
+# claude code local settings
+.claude/settings.local.json
+.playwright-mcp/
 
 # typescript
 *.tsbuildinfo

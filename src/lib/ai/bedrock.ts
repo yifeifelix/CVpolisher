@@ -10,6 +10,7 @@ import {
   InvokeModelCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import type { AIProvider, Message } from './provider';
+import { parseModelList, separateSystemMessage } from './utils';
 
 interface BedrockConfig {
   accessKeyId: string;
@@ -114,38 +115,3 @@ export class BedrockProvider implements AIProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function parseModelList(raw: string | undefined): string[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
- * Separate the optional system message from the conversation messages.
- * Bedrock's Anthropic Messages API has a top-level `system` field rather than
- * a message with role "system".
- */
-function separateSystemMessage(messages: Message[]): {
-  systemPrompt: string | undefined;
-  conversationMessages: { role: 'user' | 'assistant'; content: string }[];
-} {
-  let systemPrompt: string | undefined;
-  const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = [];
-
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      // Concatenate multiple system messages (rare but handle gracefully)
-      systemPrompt = systemPrompt ? `${systemPrompt}\n${msg.content}` : msg.content;
-    } else {
-      conversationMessages.push({ role: msg.role, content: msg.content });
-    }
-  }
-
-  return { systemPrompt, conversationMessages };
-}

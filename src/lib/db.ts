@@ -84,7 +84,7 @@ export function getSession(id: string): SessionRow | null {
 export function getRecentSessions(limit = 10): RecentSessionSummary[] {
   const db = initDb();
 
-  const stmt = db.prepare<[number], SessionRow>(`
+  const stmt = db.prepare<[number], Pick<SessionRow, 'id' | 'created_at' | 'jd_input' | 'result'>>(`
     SELECT id, created_at, jd_input, result
     FROM sessions
     ORDER BY created_at DESC

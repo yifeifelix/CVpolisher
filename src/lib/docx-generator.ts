@@ -1,6 +1,5 @@
 import {
   Document,
-  HeadingLevel,
   Packer,
   Paragraph,
   TextRun,
@@ -8,43 +7,60 @@ import {
 
 const FONT = "Calibri";
 const FONT_SIZE_BODY = 22; // half-points: 22 = 11pt
-const FONT_SIZE_TITLE = 36; // half-points: 36 = 18pt
 
-export async function generateCVDocx(
-  bullets: { original: string; polished: string }[],
-): Promise<Buffer> {
-  const titleParagraph = new Paragraph({
-    heading: HeadingLevel.TITLE,
-    children: [
-      new TextRun({
-        text: "Curriculum Vitae",
-        font: FONT,
-        size: FONT_SIZE_TITLE,
-        bold: true,
-      }),
-    ],
-    spacing: { after: 400 },
-  });
+export async function generateCVDocx(cvText: string): Promise<Buffer> {
+  const lines = cvText.split(/\n/);
+  const paragraphs: Paragraph[] = [];
 
-  const spacer = new Paragraph({
-    children: [new TextRun({ text: "", font: FONT, size: FONT_SIZE_BODY })],
-    spacing: { after: 200 },
-  });
+  for (const line of lines) {
+    const trimmed = line.trim();
 
-  const bulletParagraphs = bullets.map(
-    (b) =>
+    if (trimmed === "") {
+      // Empty line → spacer
+      paragraphs.push(new Paragraph({ spacing: { after: 120 } }));
+      continue;
+    }
+
+    // Detect bullet points (lines starting with - or •)
+    const bulletMatch = trimmed.match(/^[-•]\s*(.*)/);
+    if (bulletMatch) {
+      paragraphs.push(
+        new Paragraph({
+          bullet: { level: 0 },
+          children: [
+            new TextRun({
+              text: bulletMatch[1],
+              font: FONT,
+              size: FONT_SIZE_BODY,
+            }),
+          ],
+          spacing: { after: 60 },
+        }),
+      );
+      continue;
+    }
+
+    // Detect section headings (all-caps lines or short lines ending without punctuation)
+    const isHeading =
+      trimmed === trimmed.toUpperCase() &&
+      trimmed.length > 2 &&
+      trimmed.length < 60 &&
+      /^[A-Z\s&/]+$/.test(trimmed);
+
+    paragraphs.push(
       new Paragraph({
-        bullet: { level: 0 },
         children: [
           new TextRun({
-            text: b.polished,
+            text: trimmed,
             font: FONT,
-            size: FONT_SIZE_BODY,
+            size: isHeading ? 26 : FONT_SIZE_BODY, // 13pt for headings
+            bold: isHeading,
           }),
         ],
-        spacing: { after: 120 },
+        spacing: { after: isHeading ? 160 : 80 },
       }),
-  );
+    );
+  }
 
   const doc = new Document({
     styles: {
@@ -54,11 +70,7 @@ export async function generateCVDocx(
         },
       },
     },
-    sections: [
-      {
-        children: [titleParagraph, spacer, ...bulletParagraphs],
-      },
-    ],
+    sections: [{ children: paragraphs }],
   });
 
   return Packer.toBuffer(doc);
@@ -91,11 +103,7 @@ export async function generateCoverLetterDocx(
         },
       },
     },
-    sections: [
-      {
-        children: paragraphs,
-      },
-    ],
+    sections: [{ children: paragraphs }],
   });
 
   return Packer.toBuffer(doc);

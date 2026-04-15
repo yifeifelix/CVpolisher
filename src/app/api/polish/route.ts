@@ -66,10 +66,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   let parsedResult: unknown;
   try {
-    parsedResult = JSON.parse(rawResponse);
+    // Strip markdown code fences if the model wraps JSON in ```json ... ```
+    let jsonStr = rawResponse.trim();
+    const fenceMatch = jsonStr.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
+    if (fenceMatch) {
+      jsonStr = fenceMatch[1].trim();
+    }
+    parsedResult = JSON.parse(jsonStr);
   } catch {
     return NextResponse.json(
-      { error: 'AI returned invalid JSON response' },
+      { error: 'AI returned invalid JSON response', raw: rawResponse.substring(0, 500) },
       { status: 500 },
     );
   }

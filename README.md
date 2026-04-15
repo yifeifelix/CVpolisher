@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CV Polisher
 
-## Getting Started
+AI-powered CV optimisation tool that tailors your CV to job descriptions, scores ATS compatibility, and generates cover letters. Self-hosted on your local network.
 
-First, run the development server:
+## Features
+
+- **ATS Analysis** - Extracts keywords and must-have skills from job descriptions, scores CV match (0-100)
+- **CV Polish** - Rewrites with action verbs and quantified impact, outputs a complete polished CV (2-page max)
+- **Cover Letter** - Generates a tailored cover letter based on your polished CV and the job description
+- **Word Export** - Download as `.docx` with smart naming: `FirstName_Company.docx`
+- **Multi-Provider AI** - Supports OpenRouter, AWS Bedrock, and Google Vertex AI (Claude models)
+- **Two Modes** - With JD (full ATS analysis) or without JD (general polish)
+- **Session History** - Browse and revisit previous sessions
+- **Self-Hosted** - Runs on your local network via HTTPS, no data leaves your network
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) + TypeScript |
+| UI | TailwindCSS + shadcn/ui |
+| Database | SQLite (better-sqlite3) |
+| AI | OpenRouter / AWS Bedrock / Google Vertex AI |
+| Document Export | docx (npm) |
+| Server | Custom Node.js HTTPS with self-signed TLS |
+
+## Quick Start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Install dependencies
+npm install
+
+# Configure API keys (at least one provider required)
+cp .env.local.example .env.local
+# Edit .env.local with your credentials
+
+# Generate HTTPS certificate (first time only)
+bash scripts/generate-cert.sh
+
+# Development
+npm run dev          # http://localhost:3443
+
+# Production
+npm run build
+npm start            # https://0.0.0.0:3443
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local` with at least one provider:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# OpenRouter (simplest setup)
+CV_OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODELS=anthropic/claude-sonnet-4,anthropic/claude-haiku-4.5
 
-## Learn More
+# AWS Bedrock
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_REGION=us-east-1
+BEDROCK_MODELS=anthropic.claude-sonnet-4-20250514-v1:0
 
-To learn more about Next.js, take a look at the following resources:
+# Google Vertex AI
+GOOGLE_APPLICATION_CREDENTIALS=./google-credentials.json
+GOOGLE_PROJECT_ID=...
+GOOGLE_REGION=us-central1
+GOOGLE_MODELS=claude-sonnet-4@20250514
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Server
+PORT=3443
+HOST=0.0.0.0
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## User Flow
 
-## Deploy on Vercel
+1. **Home** - Paste CV + optional Job Description, select AI provider/model, click "Polish My CV"
+2. **Result** - Review ATS score, keywords, skills match, and the full polished CV (editable). Download as `.docx`
+3. **Cover Letter** - Click "Create Cover Letter" to generate from your polished CV. Edit and download
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## AI Prompt Rules
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- British English spelling
+- No fabrication of experiences or skills
+- Action verbs for bullet points
+- Quantified impact (never invented)
+- 2-page A4 maximum
+
+## Project Structure
+
+```
+src/
+  app/                          # Pages and API routes
+    page.tsx                    # Home - input form
+    result/[id]/page.tsx        # Result - CV review
+    result/[id]/cover-letter/   # Cover letter generation
+    api/
+      polish/                   # POST - CV polishing
+      cover-letter/             # POST - Cover letter generation
+      download/                 # POST - .docx generation
+      providers/                # GET - Available providers
+      history/                  # GET - Session history
+      result/[id]/              # GET - Session details
+  components/                   # UI components
+  lib/
+    ai/                         # Multi-provider abstraction
+    prompts.ts                  # Prompt templates
+    db.ts                       # SQLite operations
+    docx-generator.ts           # Word document generation
+server.ts                       # Custom HTTPS server
+scripts/generate-cert.sh        # TLS certificate generator
+```
+
+## LAN Access
+
+After starting the production server, access from any device on your network:
+
+```
+https://<your-machine-ip>:3443
+```
+
+The browser will show a certificate warning (self-signed) - add an exception to proceed.

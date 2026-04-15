@@ -6,6 +6,7 @@
  */
 
 import type { AIProvider, Message } from './provider';
+import { parseModelList } from './utils';
 
 interface OpenRouterChoice {
   message: {
@@ -42,7 +43,7 @@ export class OpenRouterProvider implements AIProvider {
    * Returns null if OPENROUTER_API_KEY is not set.
    */
   static fromEnv(): OpenRouterProvider | null {
-    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+    const apiKey = (process.env.CV_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY)?.trim();
     if (!apiKey) return null;
 
     const models = parseModelList(process.env.OPENROUTER_MODELS);
@@ -61,6 +62,8 @@ export class OpenRouterProvider implements AIProvider {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
+        'HTTP-Referer': 'http://localhost:3443',
+        'X-Title': 'CV Polisher',
       },
       body: JSON.stringify({ model, messages }),
     });
@@ -85,14 +88,3 @@ export class OpenRouterProvider implements AIProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function parseModelList(raw: string | undefined): string[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
