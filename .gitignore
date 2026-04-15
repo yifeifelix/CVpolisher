@@ -36,6 +36,18 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local data
+/data/*.db
+/data/*.db-journal
+
+# certificates
+/certs/*.key
+/certs/*.cert
+/certs/*.pem
+
+# google credentials
+google-credentials.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
