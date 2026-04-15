@@ -1,3 +1,4 @@
+import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -11,32 +12,36 @@ const isDev = process.env.NODE_ENV === 'development';
 const CERT_PATH = path.join(process.cwd(), 'certs', 'server.cert');
 const KEY_PATH = path.join(process.cwd(), 'certs', 'server.key');
 
-if (!fs.existsSync(CERT_PATH) || !fs.existsSync(KEY_PATH)) {
-  console.error('TLS certificates not found.');
-  console.error(`Expected cert: ${CERT_PATH}`);
-  console.error(`Expected key:  ${KEY_PATH}`);
-  console.error('Run the following command to generate them:');
-  console.error('  bash scripts/generate-cert.sh');
-  process.exit(1);
-}
-
-const tlsOptions = {
-  cert: fs.readFileSync(CERT_PATH),
-  key: fs.readFileSync(KEY_PATH),
-};
+const hasCerts = fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH);
 
 const app = next({ dev: isDev });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  https.createServer(tlsOptions, (req, res) => {
-    handle(req, res);
-  }).listen(PORT, HOST, () => {
+  let server: http.Server | https.Server;
+
+  if (hasCerts) {
+    const tlsOptions = {
+      cert: fs.readFileSync(CERT_PATH),
+      key: fs.readFileSync(KEY_PATH),
+    };
+    server = https.createServer(tlsOptions, (req, res) => {
+      handle(req, res);
+    });
+  } else {
+    server = http.createServer((req, res) => {
+      handle(req, res);
+    });
+  }
+
+  const protocol = hasCerts ? 'https' : 'http';
+
+  server.listen(PORT, HOST, () => {
     const localIp = getLocalIp();
-    console.log(`HTTPS server listening`);
-    console.log(`  Local:   https://localhost:${PORT}`);
+    console.log(`${protocol.toUpperCase()} server listening`);
+    console.log(`  Local:   ${protocol}://localhost:${PORT}`);
     if (localIp) {
-      console.log(`  Network: https://${localIp}:${PORT}`);
+      console.log(`  Network: ${protocol}://${localIp}:${PORT}`);
     }
   });
 }).catch((err: Error) => {
