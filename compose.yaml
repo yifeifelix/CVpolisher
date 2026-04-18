@@ -1,0 +1,33 @@
+services:
+  cvpolisher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cvpolisher
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    expose:
+      - "3443"
+    volumes:
+      - ./data:/app/data
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: cvpolisher-caddy
+    restart: unless-stopped
+    depends_on:
+      - cvpolisher
+    environment:
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER}
+      BASIC_AUTH_PASSWORD_HASH: ${BASIC_AUTH_PASSWORD_HASH}
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
