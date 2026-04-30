@@ -1,10 +1,14 @@
 # ADR-0001: Evolve CVpolisher from self-hosted LAN tool to freemium SaaS
 
-- **Status**: Accepted
+- **Status**: Accepted (partially superseded — see below)
 - **Date**: 2026-04-30
 - **Deciders**: yifeifelix
 - **Supersedes**: aspects of `docs/superpowers/specs/2026-04-15-cv-polisher-design.md`
   (which designed CVpolisher as a self-hosted LAN tool)
+- **Superseded in part by**: [ADR-0003](./0003-super-token-pricing-model.md)
+  — §1 product shape (paid value proposition), §8 payments (credits →
+  super tokens, two-use), §13 hard values (`refill_cap` paid 10→5,
+  `daily_cap` paid 30→15, "credits pack" → "super tokens pack")
 
 ## Context
 
@@ -34,6 +38,11 @@ architecture end-to-end.
 
 ### 1. Product shape — freemium SaaS
 
+> **Superseded in part by [ADR-0003](./0003-super-token-pricing-model.md)**:
+> the paid value proposition has expanded — super tokens now cover both
+> PDF template export **and** polish acceleration. The phrase below
+> "1 credit = one PDF export" no longer applies; see ADR-0003 §1.
+
 - Not an open-source self-hosted tool; not a pure subscription product
 - Free tier: account-gated AI polish + ATS analysis + basic `.docx` export
 - Paid: £5 buys 10 credits; 1 credit = one PDF export through a visually
@@ -56,6 +65,16 @@ architecture end-to-end.
 - Mail service: **Resend** (3000 emails/month free tier)
 
 ### 3. Quota mechanism — token bucket with bonus phase
+
+> **Superseded in part by [ADR-0003](./0003-super-token-pricing-model.md)**:
+> the four-phase lifecycle (bonus → awaiting first refill → first refill →
+> steady state) is unchanged, but:
+> - paid `refill_cap` is **5** (not 10)
+> - paid `daily_cap` is **15** (not 30)
+> - daily cap applies **only** to free-pool consumption; super-token
+>   polishes are uncapped
+> - a third pool — `super_tokens` — is consumed **after** `bonus` and
+>   `refill`, with no daily cap
 
 Free tier quota has two sequential phases:
 
@@ -212,6 +231,12 @@ rate_limit_events (id, ip, event_type, created_at)
 
 ### 8. Payments — Stripe Checkout, credits pack
 
+> **Superseded by [ADR-0003](./0003-super-token-pricing-model.md)**:
+> "credits" is renamed to "super token" and each super token is spendable
+> on **either** a PDF export **or** a polish event (1:1 with any action).
+> Consumption happens automatically in the order `bonus → refill →
+> super_tokens`, not user-chosen. See ADR-0003 §1, §2.
+
 - **Provider**: Stripe Checkout (hosted payment page)
 - **Product**: £5 = 10 credits; credits never expire
 - **Not** single-purchase £1 — Stripe fees (£0.20 + 1.5%) consume 21% of
@@ -304,6 +329,17 @@ Prompt (2):
   stop, `rate_limit_events` daily digest, Stripe webhook failure alerts.
 
 ### 13. Hard configuration values
+
+> **Superseded in part by [ADR-0003](./0003-super-token-pricing-model.md)**
+> — three numbers changed:
+> - `refill cap (paid) = 10` → **5**
+> - `daily cap (paid) = 30` → **15**
+> - `credits pack = £5 → 10 credits` → `super tokens pack = £5 → 10 super tokens`
+>   (1 super token = 1 polish event OR 1 PDF export)
+>
+> Daily cap applies only to free-pool consumption (bonus + refill);
+> super-token polishes are uncapped. Values below are the original ADR-0001
+> figures, kept for audit trail; authoritative values are in `docs/CONTEXT.md`.
 
 ```
 Quota:
