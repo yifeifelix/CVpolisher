@@ -31,6 +31,6 @@ export interface RateLimitQuery {
   now: Date;
 }
 
-export function isAllowed(_query: RateLimitQuery): boolean {
-  return true;
+export function isAllowed(query: RateLimitQuery): boolean {
+  return query.recentAttempts.length < query.limit;
 }
