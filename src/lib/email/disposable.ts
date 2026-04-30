@@ -21,5 +21,5 @@ const BLACKLIST: ReadonlySet<string> = new Set([
 ]);
 
 export function isDisposable(domain: string): boolean {
-  return BLACKLIST.has(domain);
+  return BLACKLIST.has(domain.toLowerCase());
 }
