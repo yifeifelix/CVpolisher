@@ -61,6 +61,18 @@ export type PolishVerdict =
   | { allowed: true; pool: "bonus" | "refill" | "super_tokens" }
   | { allowed: false };
 
+/**
+ * A single database-level effect produced by a polish event. The engine
+ * emits a list of these; the calling route handler translates each into
+ * a SQL statement inside its transaction.
+ */
+export type QuotaMutation =
+  | { kind: "decrement_bonus" }
+  | { kind: "increment_today_freepool" }
+  | { kind: "insert_free_event"; at: Date }
+  | { kind: "decrement_super_tokens" }
+  | { kind: "set_sliding_timer"; at: Date };
+
 export function canConsume(state: QuotaState, now: Date): PolishVerdict {
   // Daily cap gates the free pool (bonus + refill). Super tokens bypass
   // it per CONTEXT.md §Daily cap.
@@ -86,4 +98,27 @@ export function canConsume(state: QuotaState, now: Date): PolishVerdict {
   }
 
   return { allowed: false };
+}
+
+/**
+ * Given a verdict's pool choice, emit the list of database mutations
+ * that a polish event produces. The engine is a pure function; the
+ * caller applies the mutations inside a transaction after canConsume
+ * has allowed the request.
+ *
+ * The mutations for each pool are fixed by the rules in
+ * CONTEXT.md §Polish event and §Quota lifecycle.
+ */
+export function recordConsumption(
+  _state: QuotaState,
+  pool: "bonus" | "refill" | "super_tokens",
+  _now: Date,
+): QuotaMutation[] {
+  if (pool === "bonus") {
+    return [
+      { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+    ];
+  }
+  return [];
 }

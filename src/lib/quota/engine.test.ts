@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { canConsume, type QuotaState } from "./engine";
+import {
+  canConsume,
+  recordConsumption,
+  type QuotaState,
+} from "./engine";
 
 describe("quota engine — canConsume", () => {
   it("allows a newly registered free user to polish, drawing from the bonus pool", () => {
@@ -140,5 +144,26 @@ describe("quota engine — canConsume", () => {
     const verdict = canConsume(state, now);
 
     expect(verdict).toEqual({ allowed: true, pool: "bonus" });
+  });
+});
+
+describe("quota engine — recordConsumption", () => {
+  it("emits decrement-bonus and increment-today when consuming from the bonus pool", () => {
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 6,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 0,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "bonus", now);
+
+    expect(mutations).toEqual([
+      { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+    ]);
   });
 });
