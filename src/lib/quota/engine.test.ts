@@ -185,4 +185,23 @@ describe("quota engine — recordConsumption", () => {
       { kind: "increment_today_freepool" },
     ]);
   });
+
+  it("emits only decrement-super-tokens when consuming a super token", () => {
+    // Super-token polishes bypass quota_events and the daily cap
+    // (CONTEXT.md §Polish event + §Daily cap). The only mutation is
+    // the super_tokens counter.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 15,
+      superTokens: 4,
+    };
+
+    const mutations = recordConsumption(state, "super_tokens", now);
+
+    expect(mutations).toEqual([{ kind: "decrement_super_tokens" }]);
+  });
 });

@@ -114,17 +114,22 @@ export function recordConsumption(
   pool: "bonus" | "refill" | "super_tokens",
   now: Date,
 ): QuotaMutation[] {
-  if (pool === "bonus") {
-    return [
-      { kind: "decrement_bonus" },
-      { kind: "increment_today_freepool" },
-    ];
+  switch (pool) {
+    case "bonus":
+      return [
+        { kind: "decrement_bonus" },
+        { kind: "increment_today_freepool" },
+      ];
+    case "refill":
+      return [
+        { kind: "insert_free_event", at: now },
+        { kind: "increment_today_freepool" },
+      ];
+    case "super_tokens":
+      return [{ kind: "decrement_super_tokens" }];
+    default: {
+      const exhaustive: never = pool;
+      throw new Error(`unhandled pool: ${exhaustive satisfies never}`);
+    }
   }
-  if (pool === "refill") {
-    return [
-      { kind: "insert_free_event", at: now },
-      { kind: "increment_today_freepool" },
-    ];
-  }
-  return [];
 }
