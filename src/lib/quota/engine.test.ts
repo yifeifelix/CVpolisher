@@ -119,4 +119,26 @@ describe("quota engine — canConsume", () => {
 
     expect(verdict).toEqual({ allowed: true, pool: "refill" });
   });
+
+  it("prefers bonus over refill when both pools have capacity", () => {
+    // CONTEXT.md §Consumption order requires bonus to be consumed first.
+    // This state is implausible in steady operation (bonus>0 implies no
+    // refill events yet), but the invariant should hold regardless: if
+    // bonus has any remaining units, they are picked before refill.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 2,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [oneHourAgo],
+      todayFreepoolCount: 5,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "bonus" });
+  });
 });
