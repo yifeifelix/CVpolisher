@@ -13,5 +13,14 @@
  */
 
 export function normaliseEmail(input: string): string {
-  return input.toLowerCase();
+  const lower = input.toLowerCase();
+  const atIndex = lower.lastIndexOf("@");
+  const local = lower.slice(0, atIndex);
+  const domain = lower.slice(atIndex + 1);
+
+  if (domain === "gmail.com") {
+    return `${local.replace(/\./g, "")}@${domain}`;
+  }
+
+  return lower;
 }
