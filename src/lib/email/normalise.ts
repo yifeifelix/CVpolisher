@@ -19,7 +19,9 @@ export function normaliseEmail(input: string): string {
   const domain = lower.slice(atIndex + 1);
 
   if (domain === "gmail.com") {
-    return `${local.replace(/\./g, "")}@${domain}`;
+    const withoutAlias = local.split("+", 1)[0];
+    const withoutDots = withoutAlias.replace(/\./g, "");
+    return `${withoutDots}@${domain}`;
   }
 
   return lower;
