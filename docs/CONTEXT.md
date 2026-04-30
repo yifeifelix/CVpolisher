@@ -73,9 +73,14 @@ event:
   order `bonus → refill → super_tokens` (see *Consumption order*)
 - calls the LLM gateway once
 - is recorded differently depending on which pool paid:
-  - free-pool polishes (`bonus` or `refill`) insert a `quota_events`
-    row so the 5-hour refill window can be computed from it
-  - super-token polishes only decrement `app_users_meta.super_tokens`;
+  - `refill` polishes insert a `quota_events` row so the 5-hour
+    refill window can be computed from it
+  - `bonus` polishes decrement `app_users_meta.bonus_remaining` and
+    increment the per-day free-pool counter, but do **not** insert a
+    `quota_events` row — a bonus-era event would survive into the
+    first post-first-refill window and incorrectly suppress one slot
+    of the phase-3 refill
+  - `super_tokens` polishes only decrement `app_users_meta.super_tokens`;
     no `quota_events` row, no `payments` row
 - never persists the CV or JD text regardless of which pool paid
 
