@@ -19,8 +19,13 @@ export interface QuotaState {
   superTokens: number;
 }
 
-export type PolishVerdict = { allowed: true; pool: "bonus" };
+export type PolishVerdict =
+  | { allowed: true; pool: "bonus" | "refill" | "super_tokens" }
+  | { allowed: false };
 
-export function canConsume(_state: QuotaState, _now: Date): PolishVerdict {
-  return { allowed: true, pool: "bonus" };
+export function canConsume(state: QuotaState, _now: Date): PolishVerdict {
+  if (state.bonusRemaining > 0) {
+    return { allowed: true, pool: "bonus" };
+  }
+  return { allowed: false };
 }
