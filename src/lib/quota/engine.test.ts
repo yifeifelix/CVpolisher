@@ -228,4 +228,30 @@ describe("quota engine — recordConsumption", () => {
       { kind: "set_sliding_timer", at: now },
     ]);
   });
+
+  it("clears the sliding timer on the first refill tick", () => {
+    // CONTEXT.md §Quota lifecycle phase 3: at the first refill (timer
+    // has passed 5h), the timer is cleared. recordConsumption must emit
+    // clear_sliding_timer alongside the regular refill mutations when
+    // slidingTimerStartedAt was non-null.
+    const now = new Date("2026-05-01T16:00:00Z");
+    const sixHoursAgo = new Date("2026-05-01T10:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "refill", now);
+
+    expect(mutations).toEqual([
+      { kind: "insert_free_event", at: now },
+      { kind: "increment_today_freepool" },
+      { kind: "clear_sliding_timer" },
+    ]);
+  });
 });

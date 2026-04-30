@@ -71,7 +71,8 @@ export type QuotaMutation =
   | { kind: "increment_today_freepool" }
   | { kind: "insert_free_event"; at: Date }
   | { kind: "decrement_super_tokens" }
-  | { kind: "set_sliding_timer"; at: Date };
+  | { kind: "set_sliding_timer"; at: Date }
+  | { kind: "clear_sliding_timer" };
 
 export function canConsume(state: QuotaState, now: Date): PolishVerdict {
   // Daily cap gates the free pool (bonus + refill). Super tokens bypass
@@ -128,11 +129,19 @@ export function recordConsumption(
       }
       return mutations;
     }
-    case "refill":
-      return [
+    case "refill": {
+      const mutations: QuotaMutation[] = [
         { kind: "insert_free_event", at: now },
         { kind: "increment_today_freepool" },
       ];
+      // Phase 3: first refill tick. If the sliding timer was running,
+      // this consumption clears it — the steady-state formula takes
+      // over from here. CONTEXT.md §Quota lifecycle phase 3.
+      if (state.slidingTimerStartedAt !== null) {
+        mutations.push({ kind: "clear_sliding_timer" });
+      }
+      return mutations;
+    }
     case "super_tokens":
       return [{ kind: "decrement_super_tokens" }];
     default: {
