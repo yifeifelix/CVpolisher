@@ -341,9 +341,24 @@ returns 400.
 ### Rate limit event
 
 A row in `rate_limit_events`, written whenever a signup, polish, or
-payment endpoint rejects a request due to a rate limit. Used only for
-observability — daily digests, anomaly detection. Never consulted by the
-rate-limit logic itself.
+payment endpoint processes a request subject to a rate limit.
+
+**Dual role (pending schema finalisation):**
+
+- **Enforcement** — the rate limit engine reads recent rows for a
+  given key (IP address for per-IP limits, email domain for
+  per-email-domain limits) to decide whether a new attempt is within
+  the limit. This is a change from the original ADR-0001 intent where
+  the table was observability-only.
+- **Observability** — daily digests and anomaly detection read the
+  same table.
+
+The exact schema needed to support both roles (the ADR-0001 schema
+only has an `ip` column and no allowed-vs-denied discriminator) is an
+open item to be resolved when the signup route is wired up. The rate
+limit engine at `src/lib/rate-limit/` is already stateless and
+key-agnostic, so no engine change is expected — only the table's
+column set and the SQL the route issues.
 
 ---
 
