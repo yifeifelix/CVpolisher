@@ -76,4 +76,26 @@ describe("quota engine — canConsume", () => {
 
     expect(verdict).toEqual({ allowed: true, pool: "refill" });
   });
+
+  it("denies a free user whose daily cap is reached even if refill would otherwise allow it", () => {
+    // Free daily cap is 8. The events-in-window count shows 2, which
+    // would normally make refill=3-2=1 (allow), but today's counter is
+    // at 8 and the user has no super tokens, so the cap denies.
+    const now = new Date("2026-05-01T22:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T21:00:00Z");
+    const twoHoursAgo = new Date("2026-05-01T20:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [oneHourAgo, twoHoursAgo],
+      todayFreepoolCount: 8,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict.allowed).toBe(false);
+  });
 });

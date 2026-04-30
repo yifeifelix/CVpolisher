@@ -18,6 +18,11 @@ function refillCap(tier: "free" | "paid"): number {
   return tier === "paid" ? 5 : 3;
 }
 
+/** Per-tier daily cap, per CONTEXT.md §Daily cap. */
+function dailyCap(tier: "free" | "paid"): number {
+  return tier === "paid" ? 15 : 8;
+}
+
 /**
  * Steady-state refill remaining, derived from the events-in-window count.
  * See CONTEXT.md §Quota lifecycle phase 4.
@@ -44,13 +49,21 @@ export type PolishVerdict =
   | { allowed: false };
 
 export function canConsume(state: QuotaState, now: Date): PolishVerdict {
-  if (state.bonusRemaining > 0) {
+  // Daily cap gates the free pool (bonus + refill). Super tokens bypass
+  // it per CONTEXT.md §Daily cap.
+  const freePoolOpen = state.todayFreepoolCount < dailyCap(state.tier);
+
+  if (freePoolOpen && state.bonusRemaining > 0) {
     return { allowed: true, pool: "bonus" };
   }
 
   // Refill is gated by the sliding timer during awaiting-first-refill
   // (timer non-null, before 5h). Steady state has timer === null.
-  if (state.slidingTimerStartedAt === null && refillRemaining(state, now) > 0) {
+  if (
+    freePoolOpen &&
+    state.slidingTimerStartedAt === null &&
+    refillRemaining(state, now) > 0
+  ) {
     return { allowed: true, pool: "refill" };
   }
 
