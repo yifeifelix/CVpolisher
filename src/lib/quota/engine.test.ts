@@ -166,4 +166,23 @@ describe("quota engine — recordConsumption", () => {
       { kind: "increment_today_freepool" },
     ]);
   });
+
+  it("emits insert-event and increment-today when consuming from refill in steady state", () => {
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 0,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "refill", now);
+
+    expect(mutations).toEqual([
+      { kind: "insert_free_event", at: now },
+      { kind: "increment_today_freepool" },
+    ]);
+  });
 });

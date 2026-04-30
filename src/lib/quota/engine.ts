@@ -112,11 +112,17 @@ export function canConsume(state: QuotaState, now: Date): PolishVerdict {
 export function recordConsumption(
   _state: QuotaState,
   pool: "bonus" | "refill" | "super_tokens",
-  _now: Date,
+  now: Date,
 ): QuotaMutation[] {
   if (pool === "bonus") {
     return [
       { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+    ];
+  }
+  if (pool === "refill") {
+    return [
+      { kind: "insert_free_event", at: now },
       { kind: "increment_today_freepool" },
     ];
   }
