@@ -166,6 +166,30 @@ editing without heuristic plain-text parsing.
 
 ### 6. Database — SQLite, content-free
 
+> **Superseded in part by [ADR-0003](./0003-super-token-pricing-model.md)**
+> — three schema lines below are stale. Authoritative column names are
+> pinned in `src/lib/db/schema.sql` and described in `docs/CONTEXT.md`.
+> The original SQL block is kept for audit trail; the diffs are:
+>
+> - `app_users_meta.credits INT` → **`super_tokens INT`** (rename; same
+>   column role, per ADR-0003 §1 product naming change)
+> - `quota_events.event_type 'polish'|'cover-letter'|'refill'` → in
+>   practice **`event_type` is always `'polish'`** in MVP. Cover letter
+>   is tracked as a per-polish entitlement in React state, not as a row
+>   (ADR-0003 §6 + CONTEXT.md §Cover letter entitlement). Refill is not
+>   a separate event — the engine derives refill remaining from the
+>   count of `'polish'` rows in the last 5h (CONTEXT.md §Quota lifecycle
+>   phase 4). The column stays for forward compatibility.
+> - `rate_limit_events (id, ip, event_type, created_at)` → final
+>   columns are **`id`, `key_type ('ip' | 'email_domain')`,
+>   `key_value`, `event_type`, `outcome ('allowed' | 'denied')`,
+>   `created_at`**, indexed on `(key_type, key_value, created_at)`.
+>   The original ADR-0001 §11 intent that this table was
+>   observability-only is superseded by the dual-role decision in
+>   `CONTEXT.md` §Rate limit event — the rate-limit engine reads this
+>   table for enforcement, so it needs to key on both IP and email
+>   domain and needs an outcome discriminator for observability.
+
 - **Engine**: SQLite via `better-sqlite3` (existing choice, no migration
   to Postgres in MVP)
 - **Backup**: `litestream` continuous WAL replication to VPS B over the
