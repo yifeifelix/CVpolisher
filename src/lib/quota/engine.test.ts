@@ -55,4 +55,25 @@ describe("quota engine — canConsume", () => {
 
     expect(verdict).toEqual({ allowed: true, pool: "super_tokens" });
   });
+
+  it("allows a paid user in steady state to draw from refill when it has remaining capacity", () => {
+    // Paid refill cap is 5. One event 2h ago counts against the window,
+    // so 4 units of refill remain. Engine should pick refill (not super
+    // tokens), since the free pool is still viable.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const twoHoursAgo = new Date("2026-05-01T08:00:00Z");
+
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [twoHoursAgo],
+      todayFreepoolCount: 1,
+      superTokens: 4,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "refill" });
+  });
 });

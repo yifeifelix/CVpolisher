@@ -10,6 +10,26 @@
  * persist the side effect.
  */
 
+/** The 5-hour refill window, expressed as milliseconds. */
+const REFILL_WINDOW_MS = 5 * 60 * 60 * 1000;
+
+/** Per-tier refill cap, per CONTEXT.md §Tier. */
+function refillCap(tier: "free" | "paid"): number {
+  return tier === "paid" ? 5 : 3;
+}
+
+/**
+ * Steady-state refill remaining, derived from the events-in-window count.
+ * See CONTEXT.md §Quota lifecycle phase 4.
+ */
+function refillRemaining(state: QuotaState, now: Date): number {
+  const windowStart = now.getTime() - REFILL_WINDOW_MS;
+  const inWindow = state.recentFreepoolEvents.filter(
+    (t) => t.getTime() > windowStart,
+  ).length;
+  return Math.max(0, refillCap(state.tier) - inWindow);
+}
+
 export interface QuotaState {
   tier: "free" | "paid";
   bonusRemaining: number;
@@ -23,12 +43,20 @@ export type PolishVerdict =
   | { allowed: true; pool: "bonus" | "refill" | "super_tokens" }
   | { allowed: false };
 
-export function canConsume(state: QuotaState, _now: Date): PolishVerdict {
+export function canConsume(state: QuotaState, now: Date): PolishVerdict {
   if (state.bonusRemaining > 0) {
     return { allowed: true, pool: "bonus" };
   }
+
+  // Refill is gated by the sliding timer during awaiting-first-refill
+  // (timer non-null, before 5h). Steady state has timer === null.
+  if (state.slidingTimerStartedAt === null && refillRemaining(state, now) > 0) {
+    return { allowed: true, pool: "refill" };
+  }
+
   if (state.superTokens > 0) {
     return { allowed: true, pool: "super_tokens" };
   }
+
   return { allowed: false };
 }
