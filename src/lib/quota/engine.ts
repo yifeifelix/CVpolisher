@@ -110,16 +110,24 @@ export function canConsume(state: QuotaState, now: Date): PolishVerdict {
  * CONTEXT.md §Polish event and §Quota lifecycle.
  */
 export function recordConsumption(
-  _state: QuotaState,
+  state: QuotaState,
   pool: "bonus" | "refill" | "super_tokens",
   now: Date,
 ): QuotaMutation[] {
   switch (pool) {
-    case "bonus":
-      return [
+    case "bonus": {
+      const mutations: QuotaMutation[] = [
         { kind: "decrement_bonus" },
         { kind: "increment_today_freepool" },
       ];
+      // Bonus→refill transition: when this polish exhausts the bonus
+      // pool, the sliding timer starts at this moment. CONTEXT.md
+      // §Quota lifecycle phase 1→2.
+      if (state.bonusRemaining === 1) {
+        mutations.push({ kind: "set_sliding_timer", at: now });
+      }
+      return mutations;
+    }
     case "refill":
       return [
         { kind: "insert_free_event", at: now },

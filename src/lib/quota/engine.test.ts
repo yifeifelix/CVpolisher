@@ -204,4 +204,28 @@ describe("quota engine — recordConsumption", () => {
 
     expect(mutations).toEqual([{ kind: "decrement_super_tokens" }]);
   });
+
+  it("starts the sliding timer when the last bonus unit is consumed", () => {
+    // CONTEXT.md §Quota lifecycle: when bonusRemaining transitions from
+    // 1 to 0, slidingTimerStartedAt becomes the timestamp of that last
+    // bonus polish. The engine must emit that side effect alongside the
+    // bonus decrement.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 1,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 5,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "bonus", now);
+
+    expect(mutations).toEqual([
+      { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+      { kind: "set_sliding_timer", at: now },
+    ]);
+  });
 });
