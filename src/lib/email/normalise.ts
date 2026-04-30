@@ -16,7 +16,12 @@ export function normaliseEmail(input: string): string {
   const lower = input.toLowerCase();
   const atIndex = lower.lastIndexOf("@");
   const local = lower.slice(0, atIndex);
-  const domain = lower.slice(atIndex + 1);
+  const rawDomain = lower.slice(atIndex + 1);
+
+  // googlemail.com is Google's legacy UK/DE domain, aliased to
+  // gmail.com for inbox purposes. Canonicalise before the Gmail
+  // transforms so a single rule path handles both.
+  const domain = rawDomain === "googlemail.com" ? "gmail.com" : rawDomain;
 
   if (domain === "gmail.com") {
     const withoutAlias = local.split("+", 1)[0];
@@ -24,5 +29,5 @@ export function normaliseEmail(input: string): string {
     return `${withoutDots}@${domain}`;
   }
 
-  return lower;
+  return `${local}@${domain}`;
 }

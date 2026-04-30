@@ -15,4 +15,13 @@ describe("normaliseEmail", () => {
       "person@gmail.com",
     );
   });
+
+  it("treats googlemail.com as gmail.com", () => {
+    // googlemail.com is Google's legacy UK/DE domain; it routes to the
+    // same inbox as gmail.com. Without aliasing it here, a user could
+    // sign up under both forms and double-dip on the bonus.
+    expect(normaliseEmail("person.one@googlemail.com")).toBe(
+      "personone@gmail.com",
+    );
+  });
 });
