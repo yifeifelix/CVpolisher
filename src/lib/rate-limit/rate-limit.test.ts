@@ -47,4 +47,25 @@ describe("isAllowed", () => {
 
     expect(allowed).toBe(true);
   });
+
+  it("treats an attempt exactly at the window edge as expired (exclusive)", () => {
+    // Pins the chosen boundary semantics: an attempt whose timestamp
+    // equals `now - windowMs` is considered OUTSIDE the window — i.e.
+    // the user can retry at exactly 1 hour after their last attempt,
+    // not 1 hour and 1 millisecond after.
+    //
+    // See the commit message for the rationale; this test's job is to
+    // lock the choice so a future refactor cannot silently flip it.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const exactlyOneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const allowed = isAllowed({
+      recentAttempts: [exactlyOneHourAgo],
+      limit: 1,
+      windowMs: 60 * 60 * 1000,
+      now,
+    });
+
+    expect(allowed).toBe(true);
+  });
 });
