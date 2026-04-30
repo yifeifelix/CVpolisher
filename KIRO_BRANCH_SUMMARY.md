@@ -833,6 +833,62 @@ cycle is cheaper than six TDD rewrites.
 
 ---
 
+### Trap 14 — Recommending packages / subpaths without verifying
+
+**What happened.** Session 3 opened by proposing a dependency stack:
+"raw `better-sqlite3` + `@auth/better-sqlite3-adapter`". Yifei said
+"按推荐走", I ran `npm install`, and got a 404 — the package
+`@auth/better-sqlite3-adapter` does not exist. I had extrapolated its
+name from the pattern `@auth/prisma-adapter`, `@auth/drizzle-adapter`
+etc., without ever checking `npm view`.
+
+Same session, second form of the same bug: after pivoting to
+`@auth/drizzle-adapter`, I wrote `import { defineTables } from
+"@auth/drizzle-adapter/lib/sqlite"` in schema.ts. The file
+`node_modules/@auth/drizzle-adapter/lib/sqlite.js` visibly exists on
+disk, so I assumed the subpath was public API. `npm run db:generate`
+immediately failed with `ERR_PACKAGE_PATH_NOT_EXPORTED` — the
+package's `exports` field only exposes `.`, and the adapter's docs
+say users hand-roll their own schema and pass it to `DrizzleAdapter`.
+The file was internal plumbing I was reading through a `node_modules`
+keyhole.
+
+**Why it's a trap.** Both forms share a shape: *the agent treats a
+plausible-looking identifier as real without checking any source of
+truth*. It's the same bug as trap 2 (numbers from feel), applied to
+package names, import paths, and export signatures. The public
+surface of a JS package is `package.json` `exports` + the documented
+API — not whatever the agent can guess from sibling package names
+and not whatever files happen to sit in `node_modules`.
+
+The cost is higher than trap 2 because of downstream amplification.
+A wrong number is caught by an arithmetic sanity check; a wrong
+package name passes TypeScript (no error — the file isn't imported
+until runtime), passes typecheck (because the `.d.ts` is present on
+disk), and only fails at install / first-run. The user has already
+approved the recommendation by then.
+
+**Implication for the agent.** Before recommending any npm package
+or subpath import:
+
+1. For a *package name*: run `npm view <name> version` (or
+   `npm view <name> exports`). A 404 is the verification.
+2. For a *subpath import* like `pkg/lib/foo`: read the package's
+   `package.json` `exports` field directly, or fetch the package's
+   docs from the upstream site (authjs.dev / orm.drizzle.team /
+   etc.). Presence of the file in `node_modules` is not evidence
+   that the subpath is exported.
+3. When an agent says "install X" or "import from Y" in a
+   recommendation to the user, the verification above must have
+   happened *before* the user replies. Saying "按推荐走" is the user
+   agreeing to a fact-set the agent claimed; the agent owes the
+   claims to be checked.
+
+Sister rule to trap 2: **every package name, version, and import
+path in a recommendation is an empirical claim. Check it.**
+
+---
+
 ## 10. Session 2 Output (for the record)
 
 - **5 ADR / CONTEXT changes**: ADR-0003 created, ADR-0001 partially
