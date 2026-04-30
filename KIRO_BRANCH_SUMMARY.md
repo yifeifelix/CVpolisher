@@ -868,24 +868,45 @@ until runtime), passes typecheck (because the `.d.ts` is present on
 disk), and only fails at install / first-run. The user has already
 approved the recommendation by then.
 
-**Implication for the agent.** Before recommending any npm package
-or subpath import:
+**Third incident, session 4 (scrypt parameters).** Drafting ADR-0004
+§2 I wrote `N=16384, r=8, p=1` as the scrypt parameters, with the
+justification "these are the Node 22 `scryptSync` defaults and match
+the scrypt paper's interactive-logins recommendation". Both clauses
+were unverified. Yifei asked for industry-standard security; fetching
+the OWASP Password Storage Cheat Sheet showed the actual minimum is
+`N=2^17=131072` — 8× stronger — and running `crypto.scryptSync` with
+those parameters locally measured ~170ms per hash (my ADR draft
+claimed 50-100ms, also unchecked).
 
-1. For a *package name*: run `npm view <name> version` (or
-   `npm view <name> exports`). A 404 is the verification.
-2. For a *subpath import* like `pkg/lib/foo`: read the package's
-   `package.json` `exports` field directly, or fetch the package's
-   docs from the upstream site (authjs.dev / orm.drizzle.team /
-   etc.). Presence of the file in `node_modules` is not evidence
-   that the subpath is exported.
-3. When an agent says "install X" or "import from Y" in a
-   recommendation to the user, the verification above must have
-   happened *before* the user replies. Saying "按推荐走" is the user
-   agreeing to a fact-set the agent claimed; the agent owes the
-   claims to be checked.
+This is the same shape as the first two incidents, but the surface
+is "a numeric parameter in a security decision" rather than "a
+package name". The rule written after the first two incidents
+("check package names and import paths") was too narrow — it didn't
+name this third case. Rules get broader as the trap is seen in new
+dress.
 
-Sister rule to trap 2: **every package name, version, and import
-path in a recommendation is an empirical claim. Check it.**
+**Generalised rule (revised session 4).** Every claim in a
+recommendation is an empirical claim. Claims include — at least —
+package names, version numbers, import paths, export shapes,
+algorithm parameters, performance numbers, API defaults, config
+keys, and any cited external guidance. Before the user acts on a
+claim, one of these must be true:
+
+1. It has been verified against a primary source in this session
+   (`npm view`, `package.json` `exports`, project docs, the tool's
+   man page, a standards body's cheat sheet).
+2. It has been measured empirically in this session (`node -e ...`,
+   a quick script, a test).
+3. It is explicitly flagged in the response as unverified, with the
+   verification deferred to the user.
+
+"Looks like it should be X" is not a source. "Sibling packages do
+Y" is not a source. "The file exists in `node_modules`" is not a
+source. "Node's default is Z" is a source only for the claim "Node's
+default is Z", not for "Z is correct".
+
+Sister rule to trap 2: **trap 2 said numbers, trap 14 now says
+every fact**. They are the same bug at different zoom levels.
 
 ---
 
@@ -911,11 +932,13 @@ checkout in test mode, template rendering via Puppeteer.
 
 ---
 
-## 11. One-Line Summary for Session 2/3 onward
+## 11. One-Line Summary for Session 2/3/4 onward
 
 > Keep numbers derived, negative ADR clauses paired with their
 > positives, CONTEXT.md consistent across phase transitions, and
 > engines pure with `now` as a parameter. Grill before TDD. Split
 > tooling commits from feature commits. Mark descriptive tests
-> explicitly. Verify every package name and subpath import before
-> recommending it.
+> explicitly. Every fact in a recommendation — package names,
+> versions, import paths, parameters, defaults, cited standards — is
+> an empirical claim; verify against a primary source or measure it
+> before the user acts on it.
