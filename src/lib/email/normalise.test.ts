@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normaliseEmail } from "./normalise";
+import { normaliseEmail, InvalidEmailError } from "./normalise";
 
 describe("normaliseEmail", () => {
   it("lowercases a non-Gmail address but leaves the local part alone", () => {
@@ -23,5 +23,15 @@ describe("normaliseEmail", () => {
     expect(normaliseEmail("person.one@googlemail.com")).toBe(
       "personone@gmail.com",
     );
+  });
+
+  it.each([
+    ["no at sign", "nobody.example.com"],
+    ["empty local part", "@example.com"],
+    ["empty domain", "person@"],
+    ["whitespace only", "   "],
+    ["empty string", ""],
+  ])("throws InvalidEmailError on malformed input: %s", (_label, input) => {
+    expect(() => normaliseEmail(input)).toThrow(InvalidEmailError);
   });
 });
