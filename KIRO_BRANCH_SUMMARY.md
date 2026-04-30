@@ -446,3 +446,419 @@ When Yifei brings the next project, do this in order:
 > the design before the code.
 
 Match that and sessions are productive. Deviate and they stall.
+
+
+---
+
+## 9. Session 2 Addendum — Phase 1 TDD Traps (2026-04-30)
+
+The first session produced design. The second session — same day —
+started implementation. Shape of the session: super-token pricing
+re-grill, then TDD loops for the quota engine, email normalisation,
+disposable blacklist, and rate-limit engine. 33 commits, 28 tests,
+two ADR edits, one ADR created.
+
+Everything in sections 1–8 above continued to hold. This section
+records **only what was new or went wrong in session 2** — the traps
+that a future agent starting session 3 (or starting any implementation
+phase on any project) should watch for.
+
+Each trap has the same shape: *what happened*, *why it's a trap*, and
+*implication for the agent*.
+
+---
+
+### Trap 1 — Writing ADRs / CONTEXT.md before the decision chain is stable
+
+**What happened.** Session 1 closed with ADR-0001 + ADR-0002 + CONTEXT.md
+all written and committed. Session 2 opened with me recommending TDD
+start; Yifei asked about cover-letter quota semantics, then about
+paid-tier token behaviour, then about daily cap. Each question
+unwound a decision the written ADR had fossilised. Result: by the
+time super-tokens pricing landed, CONTEXT.md's §Polish event, §Tier,
+§Daily cap, §Credits pack sections all had to be rewritten, plus an
+entire new ADR-0003, plus in-place "superseded" annotations across
+ADR-0001 §1, §3, §8, §13.
+
+**Why it's a trap.** Written documents become gravity. Once committed
+they feel like "real" decisions, and reopening them feels like going
+backwards. But the actual cost of written reversal is higher than
+the cost of pausing before writing — every affected section needs
+manual audit, every quoted number has to be chased down.
+
+**Implication for the agent.** *Do not write ADRs or CONTEXT.md
+during the design session.* Take structured notes in the running
+conversation context, and write the docs after the user has
+concretely validated the decision chain — ideally by working through
+one or two specific scenarios with the numbers. An ADR whose numbers
+haven't been attacked with arithmetic is not yet a stable ADR.
+
+---
+
+### Trap 2 — Configuration numbers given from feel rather than arithmetic
+
+**What happened.** ADR-0001 set paid `refill_cap = 10` and paid
+`daily_cap = 30`. Both came from "paid should be more generous than
+free", no calculation. In session 2 Yifei asked "can an always-awake
+user actually hit 30?" — the 24h bot ceiling at refill_cap=10 is
+~40, so the 30 cap almost never triggers. The numbers had been
+decorative.
+
+The corrected derivation: a non-stop user maxes `refill_cap ×
+(24 / window_hours)` polishes per day. Free: `3 × (24/5) ≈ 12`, so
+cap 8 bites at polish 9. Paid: `5 × (24/5) ≈ 20`, so cap 15 bites at
+polish 16. Same ratio, both caps now do the job.
+
+**Why it's a trap.** Every number in a rate-limit / quota / abuse-
+defence system is either doing work or decorative. Decorative numbers
+are worse than no number because they suggest protection that isn't
+there — and because new arrivals to the codebase assume they were
+chosen carefully.
+
+**Implication for the agent.** When proposing any configured numeric
+threshold, **show the derivation in the same message as the number**.
+If the derivation is "matches what similar products do", say so — do
+not present it as if it were tuned. Do not commit a number to an ADR
+until the grill has produced the derivation.
+
+---
+
+### Trap 3 — "Preserve the ADR" bias overriding the user's business motive
+
+**What happened.** When Yifei proposed that paid tokens should be
+usable for polish acceleration (not just PDF export), my first
+recommendation was Option A — keep ADR-0001 as-is. My reasoning was
+"the ADR has just been written and has coherent rationale; changing
+it now costs a rewrite". That reasoning is technically correct but
+structurally wrong: the ADR was stable, but the *product motive*
+hadn't been. One-SKU pricing that answers two purchase motivations
+converts better than a single-motivation pricing model. The ADR
+needed to move.
+
+**Why it's a trap.** Programmer bias is towards *keep existing
+decisions consistent* because code consistency is cheap and rewrites
+are expensive. Product bias is towards *maximise revenue per user*.
+When those conflict, the agent must resist its own pull toward
+stability.
+
+**Implication for the agent.** When your instinct is to recommend
+"keep the existing ADR", check whether you're defending *the
+document* or *the underlying motive*. If the user's reframe introduces
+a new motive that isn't mentioned in the existing ADR, the ADR is
+probably wrong, not the reframe. Ask: "is this ADR the right shape
+of decision, or just the shape that happened to get written first?"
+
+---
+
+### Trap 4 — CONTEXT.md rules not self-consistent with engine arithmetic
+
+**What happened.** CONTEXT.md §Polish event said "free-pool polishes
+(bonus or refill) insert a quota_events row so the 5-hour refill
+window can be computed". Plausible at writing time — both kinds of
+consumption are free-pool events, so both should be counted.
+
+But during TDD cycle 8 I noticed: the quota formula is `refill_cap −
+count(events in last 5h)`. If bonus consumption inserts a row at
+time T, the phase-3 first refill at T+5h arrives with one row
+already inside the window — the calculated refill is `3 − 1 = 2`,
+not the correct `3`. CONTEXT.md had a rule that quietly broke the
+cap at the moment it mattered most.
+
+Fix: bonus consumption does **not** insert quota_events rows. Refill
+consumption does. CONTEXT.md rewritten accordingly (commit 257a6d3).
+
+**Why it's a trap.** Rules that interact across phases or tiers can
+be independently sensible and collectively wrong. The failure doesn't
+appear on one of the phases — it appears at a *transition*.
+
+**Implication for the agent.** Whenever CONTEXT.md or an ADR states
+a rule about *how* something is recorded / counted / computed, trace
+the rule through every lifecycle transition it touches. If a rule
+says "both X and Y insert a row", check whether consuming X does
+anything to the window that Y owns. "It's symmetric" is not a proof.
+
+---
+
+### Trap 5 — Negative ADR clauses hiding positive assumptions
+
+**What happened.** ADR-0001 §6 schema said `rate_limit_events ... —
+observability only, not used for enforcement`. That negative clause
+silently presumed enforcement would live elsewhere (in-memory, Redis).
+MVP has neither: in-memory doesn't survive multi-process, and Redis
+was rejected as over-engineering. Rate-limit enforcement therefore
+had to use `rate_limit_events` after all. The clause was not wrong
+— it was stale as soon as a later decision removed the unstated
+alternative.
+
+**Why it's a trap.** Every "we don't do X here" clause assumes X is
+done somewhere else. When later decisions eliminate the "somewhere
+else", the negative clause silently flips from true to load-bearing
+— and nothing draws attention to it.
+
+**Implication for the agent.** When writing an ADR clause that says
+"not used for Y" or "never Z", spell out *where Y / Z does live*.
+"Observability only, not enforcement — enforcement lives in
+`ratelimit.ts`'s in-memory cache" stays honest across later refactors;
+the naked negative does not.
+
+---
+
+### Trap 6 — Defence-in-depth inside pure engines — when yes, when no
+
+**What happened.** Two engines added behaviour that was already the
+caller's responsibility:
+- `isDisposable` lowercased the domain internally even though the
+  caller contract promised normalised input.
+- `isAllowed` filtered `recentAttempts` by window even though the
+  caller's SQL already applied the same window.
+
+Both were good choices. A future caller who forgets one step doesn't
+create a security gap; the engine notices.
+
+Not every engine should do this. The quota engine does **not**
+internally re-validate `QuotaState` fields (e.g. it trusts that
+`bonusRemaining >= 0`). That's the right call — an engine that
+re-validates every input turns into a defensive mess.
+
+**Why it's a pattern worth naming, not a trap.** The lines between
+"trust the caller", "defence in depth", and "validate inputs" are
+load-bearing and not obvious.
+
+**Implication for the agent.** Use defence-in-depth **only** when:
+1. The extra work is O(1) or trivially bounded (lowercase a short
+   string, filter a short list).
+2. The consequence of the caller getting it wrong is a *security*
+   failure (a disposable domain accepted, a rate limit bypassed), not
+   just a functional one.
+3. The re-done check is *exactly the same logic* as the caller's,
+   not a new business rule.
+
+If any of those three is missing, keep the engine lean and document
+the caller contract in a comment.
+
+---
+
+### Trap 7 — Adding a TDD branch regressed previously-passing tests
+
+**What happened.** Cycle 4 of the quota engine added the `refill`
+pool branch to `canConsume`. The naive implementation — "if bonus=0,
+compute refillRemaining, if >0 allow" — immediately regressed cycle 2
+and cycle 3, because those tests set up "awaiting first refill" state
+where `slidingTimerStartedAt` is non-null but `recentFreepoolEvents`
+is empty. The new branch saw empty events and greenlit the polish,
+bypassing the phase-2 gate.
+
+Only after `npx vitest run` showed 2 failures did I add the
+`slidingTimerStartedAt === null` guard. Quick fix, but should have
+been caught before running the test.
+
+**Why it's a trap.** TDD's red-green-refactor loop assumes you'll
+check "did the change regress anything" by running the full suite.
+That check works. But it's reactive — you write a bad branch, run
+tests, fix it. Better: before writing the branch, think about what
+other state combinations this branch will now match.
+
+**Implication for the agent.** When adding a new branch to a
+cascading policy function, check *every already-passing test's state*
+against the new predicate. If any previously-denying state would now
+match the new branch, the predicate needs a guard before writing
+code. It's a 30-second audit that prevents a round-trip.
+
+---
+
+### Trap 8 — Descriptive tests vs driving tests
+
+**What happened.** Three tests across the session (cycle 7 quota,
+cycle 2 disposable, cycle 4 rate-limit) passed immediately without
+a red step. Each was *describing* an invariant the implementation
+already satisfied (bonus-over-refill priority, mainstream domain
+falseness, exclusive window edge) rather than driving new code.
+
+The TDD skill is silent on this. Strict TDD says these tests
+shouldn't be written — if there's no red step, the test isn't
+earning its place. But they earn their place as *regression locks*:
+a future refactor that flips the priority order or the boundary
+inequality is caught by them.
+
+**Why it's a trap.** Writing descriptive tests without distinguishing
+them from driving tests corrodes TDD discipline — suddenly every
+"just to be safe" idea becomes a test. Writing none of them leaves
+load-bearing invariants unprotected.
+
+**Implication for the agent.** When a test passes immediately, name
+it in the commit message — `test(...)` prefix, not `feat(...)`,
+and the body should say *"descriptive, did not go red first"* plus
+the invariant being locked. This keeps the distinction explicit in
+the git history and stops the practice from quietly becoming
+"tests for the sake of coverage".
+
+Rule of thumb: **if you can't describe a future refactor that would
+make this test fail, the test doesn't earn its keep.**
+
+---
+
+### Trap 9 — "One test at a time" applied too literally to parameterised cases
+
+**What happened.** Cycle 5 of email normalisation needed to cover
+five malformed-input cases (empty / whitespace / no @ / empty local
+/ empty domain). Running strict TDD produces five red-green cycles
+and five commits. Over-ritualised for something that's one business
+rule ("reject malformed inputs") with five boundary cases.
+
+I collapsed them into one `it.each` block and one commit. The red
+step still happened — all five failed at once, then all five passed
+at once.
+
+**Why it's a trap.** The TDD skill's wording suggests "one test →
+one implementation". Taken literally, parameterised cases violate the
+rule. Taken pragmatically, they express "one behaviour with five
+boundary points" in the minimum amount of ceremony.
+
+**Implication for the agent.** TDD discipline is "**one behaviour at
+a time**", not "one assert at a time". When a behaviour has multiple
+boundary cases that share logic, `it.each` is the right tool —
+provided the red step still fires for every case before the green
+step. If any case is green from the start, split it out as a
+descriptive test (trap 8).
+
+---
+
+### Trap 10 — Time-as-dependency vs time-as-parameter
+
+**What happened.** Every time-sensitive engine in this session
+takes `now: Date` as an explicit parameter. Not a single call to
+`Date.now()` or `new Date()` inside engine code. As a consequence,
+tests use literal `new Date("2026-05-01T10:00:00Z")` and their
+arithmetic is trivial — no `vi.useFakeTimers()` needed anywhere.
+
+This is not an innovation; it's the textbook "dependency injection
+for the clock" pattern. But session 2 made the payoff concrete: 28
+tests exercising 5h sliding windows, 1h rate windows, daily caps,
+and phase-3 first refills, with zero fake-timer infrastructure.
+
+**Why it's worth pinning as a trap even though we got it right.**
+The default JavaScript/TypeScript instinct is to call `Date.now()`
+inline — "it's just the current time, why not?" — and then you end
+up reaching for fake timers, sinon, `vi.setSystemTime()`, and a
+tangled test setup.
+
+**Implication for the agent.** **Every pure engine function that
+cares about time takes `now: Date` as a parameter.** The route
+handler supplies `new Date()` at the call site; the engine never
+reads the wall clock. This is a rule, not a convention. Violating
+it immediately drags fake-timer infrastructure into the test suite.
+
+---
+
+### Trap 11 — Commit-message follow-up promises with no tracking
+
+**What happened.** Two commits in session 2 ended with "this will be
+fixed in a follow-up doc commit":
+- `feat(quota): recordConsumption emits mutations for bonus` (commit
+  f5d23fb) — promised to tighten CONTEXT.md §Polish event wording.
+- `feat(rate-limit): tracer bullet for the rate limit engine` (commit
+  2e6545c) — promised to update CONTEXT.md §Rate limit event.
+
+Both promises *were* kept. But the mechanism was purely "the agent
+remembered before context compaction". On a longer session or with
+a context reset between writing and following up, either could
+easily have been forgotten.
+
+**Why it's a trap.** Documentation drift from unfulfilled follow-ups
+is the classic slow-poison for codebases. "I'll update the doc later"
+scales terribly.
+
+**Implication for the agent.** Two rules:
+1. **Prefer not deferring.** If you know a doc update is needed, do
+   it in the same cycle (but in a separate commit — see trap 12).
+2. **If you must defer,** create a concrete todo entry immediately,
+   never a mental note. The todo tool exists for exactly this.
+
+---
+
+### Trap 12 — Tooling install and first usage must be separate commits
+
+**What happened.** When installing Vitest I nearly bundled "install
+vitest" and "first test passes" into one commit. Stopped in time,
+made two commits:
+- `chore(test): install vitest for Phase 1 TDD` (9763916)
+- `feat(quota): tracer bullet for the quota engine` (b051c21)
+
+The split paid off every time I contemplated resetting the quota
+engine work — the tooling commit was a stable base to reset to
+without losing Vitest.
+
+**Why it's a trap.** Bundled "install X + first use of X" commits
+are hard to revert independently. If the first-use code is wrong,
+reverting it takes the install with it, forcing a re-install on the
+next cycle.
+
+**Implication for the agent.** Every tooling / dependency install is
+its own commit with a `chore(...)` prefix. The first piece of code
+that uses the tool is a separate `feat(...)` commit. Even if you
+are writing the code five minutes later, split the commits.
+
+---
+
+### Trap 13 — Skipping the pre-TDD grill
+
+**What happened.** Yifei opened session 2 with "use tdd skill, start
+Phase 1". My first reaction was to install Vitest and write the
+tracer-bullet test. I stopped myself — ran a mini-grill instead
+(quota engine signature, state shape, denial reason shape, consumption
+order). That grill uncovered super-tokens pricing, cover-letter
+entitlement, paid-tier number tuning — all of which would have been
+painful mid-TDD discoveries.
+
+Had I started TDD immediately, cycle 1 would have been an `is this
+just bonus?` test with two-pool thinking baked in. Cycle 8 would
+have discovered the third pool and forced a full rewrite.
+
+**Why it's worth logging as a trap even though we avoided it.**
+The rhythm of "user says go → agent starts" is productive most of
+the time. It's wrong when the ADR→code mapping has gaps the ADR
+doesn't reveal.
+
+**Implication for the agent.** Before starting TDD on a new module,
+check three things:
+1. Is the module's interface fully specified by the existing ADRs
+   / CONTEXT.md? Or are there signature-level questions unanswered?
+2. Does the domain model have any ambiguity the tests would
+   inadvertently fossilise? (Cover letter as "polish event" vs "own
+   entity" was exactly this.)
+3. Are any of the numbers in the module's rules un-derived?
+
+If any of those is a "no, there's a gap" — grill first. One grill
+cycle is cheaper than six TDD rewrites.
+
+---
+
+## 10. Session 2 Output (for the record)
+
+- **5 ADR / CONTEXT changes**: ADR-0003 created, ADR-0001 partially
+  superseded, CONTEXT.md refactored for super tokens + cover letter
+  entitlement + rate-limit dual-role.
+- **4 pure-logic modules fully TDD'd:**
+  - `src/lib/quota/engine.ts` — 12 tests
+  - `src/lib/email/normalise.ts` — 9 tests
+  - `src/lib/email/disposable.ts` — 3 tests
+  - `src/lib/rate-limit/rate-limit.ts` — 4 tests
+- **33 commits** on branch `kiro`, linear history, not pushed.
+- **28 tests**, all green, ~250ms total run time.
+- **Tooling added**: Vitest only. No MSW, no in-memory SQLite
+  harness, no fake timers.
+
+What's left in ADR-0002 Phase 1: schema + NextAuth wiring, signup
+route (uses email + disposable + rate-limit modules), `/api/polish`
+rewrite to use the quota engine, prompt Zod validation, Stripe
+checkout in test mode, template rendering via Puppeteer.
+
+---
+
+## 11. New One-Line Summary for Session 2 onward
+
+> Keep numbers derived, negative ADR clauses paired with their
+> positives, CONTEXT.md consistent across phase transitions, and
+> engines pure with `now` as a parameter. Grill before TDD. Split
+> tooling commits from feature commits. Mark descriptive tests
+> explicitly.
