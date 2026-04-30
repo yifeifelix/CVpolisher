@@ -28,24 +28,37 @@ Do not use: *customer*, *member*, *client*.
 The billing status of a user. Exactly two values:
 
 - **`free`** — the default at signup. Has access to polish, cover-letter
-  generation, and basic `.docx` export. Subject to the free-tier quota.
+  generation, and basic `.docx` export. Subject to the free-tier quota
+  (`refill_cap = 3`, `daily_cap = 8`).
 - **`paid`** — a user who has made at least one successful purchase. Tier
   is latched: once a user becomes paid, they stay paid, even after
-  spending all credits. Quota limits are relaxed (see *Quota*).
+  spending all super tokens. Paid users get:
+  - a small free-pool perk: `refill_cap = 5` (vs 3) and `daily_cap = 15`
+    (vs 8)
+  - access to their **super token** balance (see *Super token*), which
+    can be spent on polish or PDF export and is not subject to any
+    daily cap
 
 Do not use: *premium*, *pro*, *subscriber*. There is no subscription — a
 paid user is one with purchase history, not recurring billing.
 
-### Credit
+### Super token
 
-A unit of paid entitlement. 1 credit pays for 1 PDF template export.
-Credits are purchased in packs (see *Credits pack*), do not expire, and
-are tracked on `app_users_meta.credits` as a non-negative integer.
+A unit of paid entitlement. 1 super token pays for **either** 1 PDF
+template export **or** 1 polish event — user-facing action determines
+which. Super tokens are purchased in packs (see *Super tokens pack*),
+do not expire, and are tracked on `app_users_meta.super_tokens` as a
+non-negative integer.
 
-Credits and quota are independent counters. Consuming a polish does not
-touch credits; consuming a credit does not touch quota.
+Super tokens and the free-tier quota (`bonus` + `refill`) are independent
+counters. Consuming a polish from quota does not touch super tokens;
+consuming a super token does not touch quota.
 
-Do not use: *token* (reserved for AI-related token count), *point*, *coin*.
+The name is deliberately not *credit* (which suggests a banking metaphor
+and a single use) and not *token* (reserved for AI-provider token
+count). "Super" signals "entitlement beyond the free tier".
+
+Do not use: *credit*, *token*, *point*, *coin*.
 
 ---
 
@@ -53,76 +66,147 @@ Do not use: *token* (reserved for AI-related token count), *point*, *coin*.
 
 ### Polish event
 
-One invocation of the AI pipeline that produces a polished CV, cover
-letter, or both. A polish event:
+One invocation of the AI pipeline that produces a polished CV. A polish
+event:
 
-- consumes exactly 1 quota unit
+- consumes exactly **1 unit**, drawn from the next available pool in the
+  order `bonus → refill → super_tokens` (see *Consumption order*)
 - calls the LLM gateway once
-- never persists the CV or JD text, only a row in `quota_events`
+- is recorded differently depending on which pool paid:
+  - free-pool polishes (`bonus` or `refill`) insert a `quota_events`
+    row so the 5-hour refill window can be computed from it
+  - super-token polishes only decrement `app_users_meta.super_tokens`;
+    no `quota_events` row, no `payments` row
+- never persists the CV or JD text regardless of which pool paid
 
-Cover-letter generation triggered from an existing polish result is a
-separate polish event and consumes another quota unit (see *Shared quota
-bucket*).
+Cover-letter generation is **not** a polish event. See *Cover letter
+entitlement*.
 
 Do not use: *request*, *submission*, *polish session*, *run*.
 
-### Shared quota bucket
+### Consumption order
 
-Polish events and cover-letter events draw from the same counter. There
-is no separate "cover-letter quota". UI language: "Polishes left: N".
+When a polish event is authorised, the quota engine picks exactly one
+pool to debit, in this fixed priority:
+
+1. `bonus_remaining` if > 0
+2. free-tier refill (computed from `refill_cap` minus the count of
+   non-super-token `quota_events` rows in the last 5h) if > 0
+3. `super_tokens` if > 0
+
+The user does not choose. The engine picks silently. This is a
+deliberate design decision (see ADR-0003 §2) — forcing users to pick on
+every click destroys the "my super tokens are still there" sunk-cost
+mechanic that drives repeat purchase.
+
+If all three pools are empty, the polish is denied. Paid users with 0
+super tokens fall back to the same free-pool mechanism as free users,
+with their paid `refill_cap` (5) and `daily_cap` (15).
 
 ### Quota
 
 The free-tier entitlement to polish events. Quota is engineered as a
-token bucket with a bonus phase (see *Quota lifecycle*).
+token bucket with a bonus phase (see *Quota lifecycle*). "Quota" refers
+to the combined `bonus + refill` free-tier mechanism and does **not**
+include super tokens.
 
 Do not use: *rate limit* (that term is reserved for IP/email-domain
 limits at the network/signup layer — see *Rate limit*).
 
 ### Quota lifecycle
 
-The four phases of a free user's quota state. Accurate terminology is
-required for test names and log messages.
+The four phases of a user's free-pool quota state. Applies to both free
+and paid tiers; paid users simply have higher `refill_cap` and
+`daily_cap` values. Accurate terminology is required for test names and
+log messages.
 
 1. **Bonus phase** — `bonus_remaining > 0`. Each polish event decrements
-   `bonus_remaining`. The sliding timer is not running (`sliding_timer_started_at`
-   is NULL). The refill counter is 0 and does not move.
+   `bonus_remaining` (unless the user's super tokens are being used —
+   but bonus is picked first, so that case doesn't arise unless bonus
+   is already 0). The sliding timer is not running
+   (`sliding_timer_started_at` is NULL). The refill counter is 0 and
+   does not move.
 
 2. **Awaiting first refill** — `bonus_remaining = 0`,
    `sliding_timer_started_at` is the timestamp of the last bonus-phase
-   polish, refill is 0. The user cannot polish. Duration: 5 hours from
-   `sliding_timer_started_at`.
+   polish, refill is 0. The user cannot polish from the free pool. If
+   they are paid and have super tokens, the engine picks `super_tokens`
+   — that path bypasses this phase entirely.
 
-3. **First refill** — at the instant `now >= sliding_timer_started_at + 5h`,
-   refill is set to 3 in a single atomic step. There is no 1/3 → 2/3 → 3/3
-   gradient during the first refill.
+3. **First refill** — at the instant `now >= sliding_timer_started_at
+   + 5h`, refill is set to `refill_cap` (3 free / 5 paid) in a single
+   atomic step. There is no gradual ramp.
 
-4. **Steady state** (token bucket) — each polish event decrements refill
-   by 1 and inserts a `quota_events` row. Exactly 5 hours after a row's
-   `created_at`, that row contributes 1 back to refill, independently of
-   other rows. Refill is capped at `refill_cap` (3 for free, 10 for paid).
+4. **Steady state** (token bucket) — each free-pool polish event
+   decrements refill by 1 and inserts a `quota_events` row. Exactly 5
+   hours after a row's `created_at`, that row contributes 1 back to
+   refill, independently of other rows. Refill is capped at
+   `refill_cap`.
 
-In steady state, refill = `refill_cap - COUNT(quota_events WHERE user_id = ?
-AND event_type IN ('polish','cover-letter') AND created_at > now - 5h)`
-(clamped to >= 0).
+In steady state, refill = `refill_cap - COUNT(quota_events WHERE user_id
+= ? AND event_type = 'polish' AND created_at > now - 5h)` (clamped to
+>= 0). Super-token polishes do not produce `quota_events` rows and thus
+do not affect refill. The `event_type` column exists for forward
+compatibility; today only `'polish'` is written.
 
 ### Daily cap
 
-A safety net ceiling on polish events per server-day per user.
-Free: 8. Paid: 30. Resets at midnight server time. Applies on top of the
-quota mechanism — if quota says yes but daily cap says no, the answer is
-no.
+A safety net ceiling on **free-pool** polish events per server-day per
+user. Free: 8. Paid: 15. Resets at midnight server time.
 
-### Credits pack
+The cap applies **only** to free-pool consumption (bonus + refill).
+Super-token polishes are uncapped — a user who paid has already paid
+for the cost of the call; capping them would punish paying customers
+(see ADR-0003 §3).
 
-A Stripe-billed purchase that grants credits to a user. MVP offers one
-pack: £5 → 10 credits. A successful purchase:
+If the daily cap is exceeded but the user still has super tokens, the
+engine picks `super_tokens` instead of denying the polish. This is the
+normal fallback path, not an edge case.
+
+### Super tokens pack
+
+A Stripe-billed purchase that grants super tokens to a user. MVP offers
+one pack: £5 → 10 super tokens. A successful purchase:
 
 - inserts a row into `payments`
-- increments `app_users_meta.credits` by the pack's `credits_granted`
-- latches the user's tier to `paid` if previously `free`
+- increments `app_users_meta.super_tokens` by the pack's token count
+- latches the user's tier to `paid` if previously `free` — immediately
+  applies the paid `refill_cap` (5) and `daily_cap` (15) values to
+  future polishes
+- does **not** reset or alter `bonus_remaining` — a user still in the
+  bonus phase does not lose bonus on purchase; the paid perks simply
+  take effect when bonus exhausts
 
-Do not use: *bundle*, *package*, *top-up*.
+Do not use: *bundle*, *package*, *top-up*, *credits pack*.
+
+### Cover letter entitlement
+
+A one-time right to generate a cover letter, bundled with every polish
+event. The entitlement:
+
+- is created alongside a successful polish result
+- is consumed the first (and only) time the user clicks "Create Cover
+  Letter" on the post-polish result page
+- does **not** debit the quota engine, does **not** debit super tokens,
+  does **not** insert a `quota_events` row — it is tracked purely in
+  the in-flight polish result object
+- disappears when the polish result does (MVP policy: polish results are
+  not persisted; refreshing the result page loses both the polish and
+  the entitlement)
+- is only available when the original polish was given a JD (no JD =
+  no cover letter to generate)
+
+This models the business rule "one polish = one job application package
+(CV + cover letter)" without re-implementing the quota mechanism
+twice, and without the surprise-double-charge UX of the previous
+"shared quota bucket" design.
+
+Future versions may allow regeneration of the cover letter (at a super
+token cost, or free, or capped per day — undecided). MVP scope: one
+cover letter per polish, free, non-refreshable.
+
+Do not use: *cover letter quota*, *cover letter slot*, *cover letter
+credit*.
 
 ---
 
@@ -186,7 +270,7 @@ forever on the operator's cost.
 A rendered-PDF design applied to a polished CV. Implemented as a React
 component plus scoped CSS in `src/templates/<name>/`. A template:
 
-- consumes 1 credit per export
+- consumes 1 super token per export
 - takes the polish schema's JSON as input
 - renders to HTML, is opened in a shared Puppeteer-controlled browser,
   and returns a PDF
@@ -200,7 +284,7 @@ Do not use: *theme*, *style*, *layout*.
 
 The free-tier export path. Takes the polished CV as plain text, uses
 `docx-generator.ts`, returns a `.docx` with minimal formatting designed
-to parse cleanly in applicant tracking systems. Consumes 0 credits.
+to parse cleanly in applicant tracking systems. Consumes 0 super tokens.
 
 Do not use: *basic export*, *free template*. The ATS-safe export is not
 a template — it is a separate export pathway.
@@ -316,7 +400,7 @@ accepts inbound only from Cloudflare's published IP ranges.
 ### MVP
 
 The scope defined by ADR-0002 Phase 1–4: one template, one provider,
-Google + email/password auth, credits-pack payment, no history,
+Google + email/password auth, super-tokens-pack payment, no history,
 no app, no LinkedIn import. Features outside this list are explicitly
 V2.
 
