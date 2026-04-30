@@ -32,5 +32,9 @@ export interface RateLimitQuery {
 }
 
 export function isAllowed(query: RateLimitQuery): boolean {
-  return query.recentAttempts.length < query.limit;
+  const windowStart = query.now.getTime() - query.windowMs;
+  const inWindow = query.recentAttempts.filter(
+    (t) => t.getTime() > windowStart,
+  ).length;
+  return inWindow < query.limit;
 }

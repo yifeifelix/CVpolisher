@@ -30,4 +30,21 @@ describe("isAllowed", () => {
 
     expect(allowed).toBe(false);
   });
+
+  it("ignores attempts that fall outside the window", () => {
+    // An attempt 2 hours ago does not count toward a 1-hour window.
+    // This is defence-in-depth: even if the caller's SQL query fails
+    // to filter by created_at, the engine still gives the right answer.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const twoHoursAgo = new Date("2026-05-01T08:00:00Z");
+
+    const allowed = isAllowed({
+      recentAttempts: [twoHoursAgo],
+      limit: 1,
+      windowMs: 60 * 60 * 1000,
+      now,
+    });
+
+    expect(allowed).toBe(true);
+  });
 });
