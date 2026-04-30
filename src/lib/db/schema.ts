@@ -94,6 +94,39 @@ export const verificationTokensTable = sqliteTable(
   ],
 );
 
+// --- Auth-adjacent tables (owned by us, not NextAuth) -------------------
+
+/**
+ * Password credentials for users who registered via the credentials
+ * provider. OAuth-only users have no row here. Kept separate from the
+ * NextAuth `user` table per ADR-0004 §5 — a nullable password_hash on
+ * `user` would be a schema lie about OAuth users, and future auth
+ * methods (passkeys / 2FA) belong on this table's side of the boundary
+ * rather than bloating `user`.
+ *
+ * `password_hash` format is pinned by ADR-0004 §2:
+ *
+ *   scrypt:N=131072,r=8,p=1:<16-byte-salt-hex>:<64-byte-hash-hex>
+ *
+ * The algorithm name and parameters are embedded so parameter upgrades
+ * are a hot re-hash at next login, not a schema migration.
+ *
+ * `updated_at` is touched on every successful hot re-hash so that
+ * "users still on legacy parameters" is a queryable set.
+ */
+export const credentialsTable = sqliteTable("credentials", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+});
+
 // --- Business tables ----------------------------------------------------
 //
 // Every business column is justified by a CONTEXT.md / ADR reference
