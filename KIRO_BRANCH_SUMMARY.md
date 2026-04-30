@@ -911,10 +911,11 @@ checkout in test mode, template rendering via Puppeteer.
 
 ---
 
-## 11. New One-Line Summary for Session 2 onward
+## 11. One-Line Summary for Session 2/3 onward
 
 > Keep numbers derived, negative ADR clauses paired with their
 > positives, CONTEXT.md consistent across phase transitions, and
 > engines pure with `now` as a parameter. Grill before TDD. Split
 > tooling commits from feature commits. Mark descriptive tests
-> explicitly.
+> explicitly. Verify every package name and subpath import before
+> recommending it.
