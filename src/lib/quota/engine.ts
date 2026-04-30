@@ -27,5 +27,8 @@ export function canConsume(state: QuotaState, _now: Date): PolishVerdict {
   if (state.bonusRemaining > 0) {
     return { allowed: true, pool: "bonus" };
   }
+  if (state.superTokens > 0) {
+    return { allowed: true, pool: "super_tokens" };
+  }
   return { allowed: false };
 }

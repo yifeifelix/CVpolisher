@@ -35,4 +35,24 @@ describe("quota engine — canConsume", () => {
 
     expect(verdict.allowed).toBe(false);
   });
+
+  it("falls through to super tokens when the free pool is unavailable", () => {
+    // Paid user in awaiting-refill. Free pool is empty but super tokens
+    // remain — the engine should pick super_tokens rather than denying.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: oneHourAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 4,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "super_tokens" });
+  });
 });
