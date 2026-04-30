@@ -98,4 +98,25 @@ describe("quota engine — canConsume", () => {
 
     expect(verdict.allowed).toBe(false);
   });
+
+  it("delivers the first refill once the sliding timer has passed 5 hours", () => {
+    // Free user in phase 3: bonus exhausted 6h ago, timer was started
+    // at that moment, so timer + 5h < now. The free pool should open
+    // with pool=refill (not 'bonus', not 'super_tokens', not denial).
+    const now = new Date("2026-05-01T16:00:00Z");
+    const sixHoursAgo = new Date("2026-05-01T10:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "refill" });
+  });
 });
