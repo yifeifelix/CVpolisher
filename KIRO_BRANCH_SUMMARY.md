@@ -910,6 +910,70 @@ every fact**. They are the same bug at different zoom levels.
 
 ---
 
+### Trap 15 — Grill covers business decisions, not framework constraints
+
+**What happened.** Session 4 opened with a pre-TDD grill (Trap 13) on
+five implicit ADR-0001 §2 decisions. The grill surfaced real
+decisions, reasoning was sound, ADR-0004 was written, schema was
+generated, scrypt module shipped. Three hours of clean commits.
+
+Then, about to write `auth.ts`, I fetched the Credentials provider
+docs and discovered NextAuth v5's long-standing constraint: the
+Credentials provider forces `strategy: "jwt"`. `strategy: "database"`
+with Credentials does not work out of the box — it's a multi-year
+GitHub Discussion (#4394) with community workarounds involving
+hand-writing session rows in the jwt callback.
+
+ADR-0004 §1 had committed to database session. §4 had committed to
+a full signup pipeline for Credentials. §5 had built a `credentials`
+table. The grill had not surfaced this because none of the grill
+questions lived in the "framework reality" bucket — they were all
+about *our business decisions* (session revocation semantics, hash
+algorithm, mail transport, pipeline order, table shape).
+
+**Why it's a trap.** Grill questions target what the builder
+controls: product shape, data model, rollout sequence. They do not
+naturally target what the framework imposes. When a decision
+appears unambiguous inside the grill ("database session is strictly
+better for us"), the grill does not ask "... and is that even
+implementable in the combination of libraries we've picked?"
+
+The cost shape is different from Trap 14. A wrong package name is
+caught at install. A framework constraint surfaces *after* ADRs are
+written, code is committed, and the grill's conclusion has hardened
+into design doctrine. Rolling back feels like admitting the grill
+failed; it didn't — it did its job inside its scope.
+
+**Implication for the agent.** Before the first line of code that
+wires a framework together, add a **library-reality pass**:
+
+1. For every decision the grill produced that has a
+   framework-observable shape (session strategy, token format,
+   middleware model, adapter contract), fetch the framework doc
+   page for *that exact combination* and confirm it is
+   documented / blessed.
+2. Community search for "does X work with Y": if the top hits are
+   StackOverflow workarounds or multi-year GitHub discussions,
+   treat that as a red flag — not a how-to.
+3. When a constraint is found that contradicts a grill decision,
+   **do not amend the grill decision in place**. Write down what
+   the grill decided, what the library requires, and what route
+   forward is being taken. A decision overruled by physics is a
+   valuable record; a decision quietly rewritten to match physics
+   reads like the grill saw everything all along.
+
+Phase 1 of CVpolisher triggered this trap on database session +
+Credentials. The response was to pause kiro, branch v1 to
+Google-OAuth-only (OAuth has no such constraint), and preserve all
+kiro-branch artifacts for a v2 that adds Credentials later. See
+`docs/BRANCH_KIRO_STATUS.md` for the full narrative and
+`docs/HANDOFF_V1_GOOGLE_OAUTH.md` for the v1 start.
+
+Sister rule to trap 13: **grilling with the user does not
+substitute for grilling with the library**. Both are required.
+
+---
+
 ## 10. Session 2 Output (for the record)
 
 - **5 ADR / CONTEXT changes**: ADR-0003 created, ADR-0001 partially
@@ -941,4 +1005,6 @@ checkout in test mode, template rendering via Puppeteer.
 > explicitly. Every fact in a recommendation — package names,
 > versions, import paths, parameters, defaults, cited standards — is
 > an empirical claim; verify against a primary source or measure it
-> before the user acts on it.
+> before the user acts on it. Grill with the user *and* with the
+> library; framework constraints don't show up inside a product
+> grill, they show up at the first line of wiring code.
