@@ -291,3 +291,100 @@ response is identical (again closing enumeration).
 
 No backwards-incompatible change to the NextAuth `user` / `session`
 / `account` / `verificationToken` tables.
+
+
+### 6. Environment variables for Phase 1 auth
+
+The NextAuth v5 configuration reads a small fixed set of environment
+variables. Listing them here (rather than discovering them implicitly
+from `auth.ts`) means a new contributor reading this ADR knows the
+complete contract.
+
+#### Required
+
+**`AUTH_SECRET`** — 32+ character random string, used to encrypt the
+session cookie and the CSRF token. Generate with:
+
+```bash
+npm exec auth secret          # NextAuth CLI
+openssl rand -base64 33       # equivalent one-liner
+```
+
+NextAuth **refuses to start** in production without this. In dev it
+falls back to an insecure default and logs a warning; we will still
+set it in dev to silence the warning.
+
+**`AUTH_TRUST_HOST`** — set to `true` when the app runs behind a
+reverse proxy (Caddy, Cloudflare Tunnel, nginx). Tells NextAuth to
+trust the `X-Forwarded-Host` header. Our Phase 3 deployment target
+(ADR-0001 §9) puts the app behind Caddy, so production will always
+set this. Dev is direct-to-Node, can leave it unset.
+
+The [NextAuth deployment docs][nextauth-deploy] auto-detect a few
+hosts (Vercel, Cloudflare Pages) and set this implicitly; our VPS
+target is neither, so we set it explicitly.
+
+[nextauth-deploy]: https://authjs.dev/getting-started/deployment
+
+#### Provider credentials — naming convention
+
+NextAuth v5 auto-wires OAuth providers from env vars named
+`AUTH_<PROVIDER>_ID` and `AUTH_<PROVIDER>_SECRET`. No explicit pass
+is needed in `auth.ts` beyond listing the provider. For Google:
+
+- `AUTH_GOOGLE_ID`
+- `AUTH_GOOGLE_SECRET`
+
+Phase 1 does **not** ship real Google credentials. The two vars are
+listed in `.env.local.example` with empty placeholders; `auth.ts`
+declares the provider unconditionally so the config type-checks, but
+clicking "Sign in with Google" in the UI will fail with NextAuth's
+standard "provider misconfigured" response until Phase 4 (ADR-0002
+Phase 4 "launch checklist"). The credentials-provider login path
+works independently.
+
+#### Explicitly not needed in Phase 1
+
+- **`AUTH_URL`** — only required when the app is mounted on a
+  non-standard base path. We serve from `/` so NextAuth infers the
+  host from request headers.
+- **`AUTH_REDIRECT_PROXY_URL`** — preview-deployment-only; we have
+  no preview deploys in Phase 1.
+- **`NEXTAUTH_URL`** / **`NEXTAUTH_SECRET`** — these are the **v4**
+  names. v5 drops the `NEXT` prefix. Mentioned here because they
+  appear in most StackOverflow answers and every outdated tutorial;
+  using them in a v5 app silently does nothing.
+
+#### Provider-env naming conflict with existing LAN-tool vars
+
+The LAN-tool era `.env.local.example` defines:
+
+- `CV_OPENROUTER_API_KEY`
+- `BEDROCK_*`
+- `GOOGLE_APPLICATION_CREDENTIALS` (Vertex AI service account path)
+- `GOOGLE_PROJECT_ID`, `GOOGLE_REGION`, `GOOGLE_MODELS`
+
+These do **not** collide with NextAuth's Google OAuth naming
+(`AUTH_GOOGLE_ID` / `_SECRET`) because NextAuth only reads the
+`AUTH_`-prefixed form. The LLM-side `GOOGLE_*` vars keep their
+existing names so Phase 1 does not break the `/api/polish` path's
+Vertex route (still LAN-tool code, retiring later).
+
+#### Ecosystem note — Auth.js is joining Better Auth
+
+At the time of writing (2026-05-01) the authjs.dev homepage states
+"The Auth.js project is now part of **Better Auth**". This means
+NextAuth v5's post-beta future may land under the Better Auth brand
+rather than a `next-auth@5` GA. This does **not** invalidate the
+current install:
+
+- `next-auth@5.0.0-beta.31` is a shipped, working release with the
+  API we use (adapter + providers + callbacks) fully documented.
+- A migration to Better Auth, if it becomes necessary, happens at
+  Phase 4 security review or later. It will be tracked as a
+  separate ADR when it has a concrete trigger.
+- Until then, anything in this ADR that refers to "NextAuth" can
+  be read as "NextAuth v5 / Auth.js as of May 2026".
+
+The migration note is recorded here so a future agent reopening
+this ADR is not surprised by a docs-site redirect.
