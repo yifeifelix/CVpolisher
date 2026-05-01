@@ -1,6 +1,6 @@
 # ADR-0004: Phase 1 authentication and signup decisions
 
-- **Status**: Accepted
+- **Status**: Accepted (partially paused — see status block below)
 - **Date**: 2026-05-01
 - **Deciders**: yifeifelix
 - **Relates to**: [ADR-0001 §2](./0001-saas-architecture.md), [ADR-0002 Phase 1](./0002-mvp-implementation-plan.md)
@@ -8,6 +8,53 @@
   [Trap 13 rule in KIRO_BRANCH_SUMMARY §9](../../KIRO_BRANCH_SUMMARY.md) —
   implicit decisions in ADR-0001 §2 had to be made concrete before any
   NextAuth wiring code could be written.
+
+## Status update (2026-05-01, same session)
+
+Session 4 paused before `auth.ts` was written. A library-reality
+check against the NextAuth v5 Credentials provider docs surfaced a
+multi-year constraint: the Credentials provider forces
+`strategy: "jwt"`, which conflicts with §1's database-session
+decision. §4 (signup pipeline) and §5 (credentials table wiring)
+transitively depend on a Credentials provider that cannot coexist
+with the §1 choice.
+
+**Rather than patching §1 in place, the project splits auth into two
+versions:**
+
+- **v1 — Google OAuth only.** OAuth has no such constraint; ADR-0005
+  (to be written on a new branch) pins v1's shape.
+  - §1 (database session) remains the v1 choice — OAuth supports it
+    natively.
+  - §2 (scrypt hash) is **inert in v1** — no Credentials provider
+    means no password hashing. The module on disk (commit `171d9e8`)
+    is preserved for v2.
+  - §3 (mock mail transport) is **inert in v1** for verification —
+    Google pre-verifies email; the module may serve polish-complete
+    notifications if those land in v1 scope.
+  - §4 (signup pipeline) is **deferred to v2** entirely.
+  - §5 (credentials table) remains in schema as an inert, empty
+    table for v2 to use.
+  - §6 (env variables) is **largely unchanged**: `AUTH_SECRET`,
+    `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` all apply; the v1 agent
+    must set real values in `.env.local` (see the handoff).
+
+- **v2 — adds Credentials.** Deferred until after v1 launch. At that
+  point a new branch re-activates §2, §4, §5 from this ADR and
+  re-decides §1 (expect JWT session for v2 because Credentials
+  forces it).
+
+See:
+- [`docs/BRANCH_KIRO_STATUS.md`](../BRANCH_KIRO_STATUS.md) — artifact
+  inventory, return triggers
+- [`docs/HANDOFF_V1_GOOGLE_OAUTH.md`](../HANDOFF_V1_GOOGLE_OAUTH.md) —
+  git-checkout-then-start procedure for v1
+- [KIRO_BRANCH_SUMMARY §9 Trap 15](../../KIRO_BRANCH_SUMMARY.md) — the
+  class of failure that triggered this split
+
+The ADR body below is preserved as the original, unmodified v2 plan.
+Do not edit §1–§5 to "fix" them for v1; v1 follows ADR-0005 for its
+divergences, while v2 inherits this ADR as-is.
 
 ## Context
 
