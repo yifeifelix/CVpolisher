@@ -41,6 +41,10 @@ yarn-error.log*
 /data/*.db
 /data/*.db-journal
 
+# SQLite WAL/SHM artefacts (transient, never committed)
+*.db-shm
+*.db-wal
+
 # certificates
 /certs/*.key
 /certs/*.cert
