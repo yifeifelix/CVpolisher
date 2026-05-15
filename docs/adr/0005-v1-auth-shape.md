@@ -409,6 +409,17 @@ NextAuth's `unstable_update` to mutate the session in place
 - **3 queries per authed request** — see "Known cost" above.
   Acceptable for v1 launch traffic; revisit at Phase 4 when
   payment volume warrants it.
+- **`@/lib/db` module resolution ambiguity.** With
+  `moduleResolution: "bundler"` in `tsconfig.json`, legacy
+  `src/lib/db.ts` (@deprecated, see commit `636a97a`) is resolved
+  in preference to the Drizzle client at `src/lib/db/index.ts`.
+  SaaS-layer code wanting the Drizzle client must import explicitly
+  as `@/lib/db/index` (see `src/lib/auth/auth.ts`). The three
+  legacy API routes (polish / cover-letter / download) continue to
+  import `@/lib/db` — this is intentional; they are legacy storage
+  consumers and will be migrated when Phase 4 unifies the storage
+  layer. D.6 adds the `auth()` gate to those routes **without
+  touching their db imports**.
 
 ## v2 considerations
 
