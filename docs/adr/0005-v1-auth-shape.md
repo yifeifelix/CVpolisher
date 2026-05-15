@@ -116,7 +116,9 @@ silently treat the user as never-onboarded.
 #### Decision: A + B (atomic insert + lazy recovery)
 
 **A. Atomic insert in the hook** — replace select-then-insert with
-SQLite's `INSERT OR IGNORE`. One statement, no TOCTOU window:
+SQLite's `INSERT OR IGNORE`. One statement, no TOCTOU window. The
+default-row payload comes from the `buildInitialMeta(userId)` factory
+defined below; never inline:
 
 ```ts
 events: {
@@ -124,13 +126,7 @@ events: {
     if (!user.id) return
     await db
       .insert(appUsersMetaTable)
-      .values({
-        userId: user.id,
-        tier: "free",
-        bonusRemaining: SIGNUP_BONUS,
-        superTokens: 0,
-        slidingTimerStartedAt: null,
-      })
+      .values(buildInitialMeta(user.id))
       .onConflictDoNothing({ target: appUsersMetaTable.userId })
   },
 },
@@ -163,13 +159,7 @@ async session({ session, user }) {
     console.warn(`[auth] app_users_meta missing for user ${user.id}, recovering`)
     await db
       .insert(appUsersMetaTable)
-      .values({
-        userId: user.id,
-        tier: "free",
-        bonusRemaining: SIGNUP_BONUS,
-        superTokens: 0,
-        slidingTimerStartedAt: null,
-      })
+      .values(buildInitialMeta(user.id))
       .onConflictDoNothing({ target: appUsersMetaTable.userId })
     meta = await db
       .select()
@@ -212,7 +202,41 @@ the real value at insert time, and the recovery path uses the same
 constant — both write through `SIGNUP_BONUS`, never the schema
 default.
 
-**Email normalisation for v1**: ADR-0001 §6 proposed an
+#### Single source of truth — `buildInitialMeta` factory
+
+**Decision:** the default `app_users_meta` row payload is produced by
+**one** factory function, `buildInitialMeta(userId: string): NewAppUsersMetaRow`,
+exported from a dedicated module. **Both** call sites — the
+`events.createUser` hook (path A) and the `session` callback's
+recovery branch (path B) — invoke this factory. Inlining the default
+object literal at either call site is forbidden.
+
+- **File location**: `src/lib/quota/initial-meta.ts` (implementation
+  lands in D.3 alongside `events.createUser` itself; this ADR
+  specifies the contract, not the code).
+- **Internals**: the factory imports `SIGNUP_BONUS` from
+  `src/lib/quota/constants.ts` (§4) and references it by name —
+  the literal `6` is **not** baked into the factory body. Every
+  field the v1 default row carries (`tier: "free"`, `superTokens: 0`,
+  `slidingTimerStartedAt: null`, etc.) lives in this factory and
+  nowhere else.
+- **Return type**: `NewAppUsersMetaRow`, derived from
+  `typeof appUsersMetaTable.$inferInsert` (Drizzle's insert-row
+  type) so future schema columns flow into the factory's signature
+  automatically — adding a column with no default forces a TS error
+  here, not silent drift between A and B.
+
+**Why a factory, not just `SIGNUP_BONUS`**: `SIGNUP_BONUS` alone
+covers the bonus value, but `tier` / `superTokens` /
+`slidingTimerStartedAt` are still hardcoded twice in the previous
+draft. When the v1 defaults change (e.g. a future ADR adds a
+`signup_source` column or shifts the default tier flow), the edit
+must be one file. A second hardcoded copy in the recovery branch
+that nobody remembers to update is a latent bug we cannot detect
+with `grep` once the values match by coincidence rather than by
+construction.
+
+
 `email_normalized` column on `user` for dedupe; [commit `08a9ee7`](../../src/lib/db/schema.ts#L41)
 chose NOT to add it (NextAuth's default `user.email` is the sole email
 column, with a `UNIQUE` constraint). v1 relies on Google's own
@@ -340,6 +364,9 @@ Routes receiving this gate in v1:
 - **New file**: `src/app/api/auth/[...nextauth]/route.ts` (handlers).
 - **New file**: `src/types/next-auth.d.ts` (module augmentation).
 - **New file**: `src/lib/quota/constants.ts` (`SIGNUP_BONUS`).
+- **New file**: `src/lib/quota/initial-meta.ts` (`buildInitialMeta`
+  factory, single source of truth for the default `app_users_meta`
+  row — §5).
 - **Change**: `src/lib/quota/engine.ts` gains `derivePhase`.
 - **Change**: three API routes add `auth()` gate.
 - **New UI**: `src/app/login/page.tsx` (single button) +
