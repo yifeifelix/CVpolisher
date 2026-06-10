@@ -18,20 +18,21 @@ export function SessionIndicator() {
 
   if (!session?.user) {
     return (
-      <Link href="/login">
-        <Button variant="outline" size="sm">
-          Sign in
-        </Button>
+      <Link href="/login" className="proof-link font-mono text-xs tracking-[0.18em] uppercase">
+        Sign in
       </Link>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-slate-500">{session.user.email}</span>
+    <div className="flex items-baseline gap-4">
+      <span className="font-mono text-xs tracking-wide text-muted-foreground">
+        {session.user.email}
+      </span>
       <Button
         variant="outline"
         size="sm"
+        className="font-mono text-[0.7rem] tracking-[0.15em] uppercase"
         onClick={() => signOut({ redirectTo: "/login" })}
       >
         Sign out

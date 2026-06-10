@@ -45,44 +45,55 @@ export function HistoryList() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-400">Loading history...</p>;
+    return (
+      <p className="font-mono text-xs tracking-wider text-muted-foreground">
+        Pulling drafts from the drawer…
+      </p>
+    );
   }
 
   if (error) {
-    return <p className="text-sm text-red-500">Error loading history: {error}</p>;
+    return <p className="text-sm text-accent">Error loading history: {error}</p>;
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-slate-400">No history yet.</p>;
+    return (
+      <p className="font-mono text-xs tracking-wider text-muted-foreground">
+        Nothing in the drawer yet — your first polish lands here.
+      </p>
+    );
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
         <Card
           key={item.id}
-          className="cursor-pointer transition-shadow hover:shadow-md"
+          className="group cursor-pointer rounded-[var(--radius)] ring-border transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_color-mix(in_oklch,var(--foreground)_10%,transparent)]"
           onClick={() => router.push(`/result/${item.id}`)}
         >
           <CardContent className="py-3">
-            <p className="text-xs text-slate-400 mb-1">{formatDate(item.created_at)}</p>
-            <p className="text-sm text-slate-700 line-clamp-2 mb-2">
-              {item.jd_snippet ?? "General Polish"}
+            <p className="mb-2 font-mono text-[0.65rem] tracking-[0.15em] uppercase text-muted-foreground">
+              {formatDate(item.created_at)}
+            </p>
+            <p className="mb-3 line-clamp-2 text-sm leading-snug">
+              {item.jd_snippet ?? "General polish"}
             </p>
             {item.atsScore !== null && (
-              <p className="text-xs font-semibold text-slate-600">
-                ATS Score:{" "}
+              <p className="font-mono text-[0.7rem] tracking-wider uppercase text-muted-foreground">
+                ATS{" "}
                 <span
                   className={
                     item.atsScore >= 75
-                      ? "text-green-600"
+                      ? "font-semibold text-emerald-700"
                       : item.atsScore >= 50
-                        ? "text-amber-500"
-                        : "text-red-500"
+                        ? "font-semibold text-amber-600"
+                        : "font-semibold text-accent"
                   }
                 >
                   {item.atsScore}
                 </span>
+                <span className="ml-1 text-muted-foreground/60">/100</span>
               </p>
             )}
           </CardContent>
