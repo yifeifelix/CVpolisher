@@ -180,6 +180,14 @@ export const appUsersMetaTable = sqliteTable("app_users_meta", {
 });
 
 /**
+ * Insert-row shape for app_users_meta, derived from the table so new
+ * columns flow into consumers' signatures automatically (ADR-0005 §5
+ * — buildInitialMeta returns this type; a NOT NULL column added
+ * without a default becomes a compile error there, not silent drift).
+ */
+export type NewAppUsersMetaRow = typeof appUsersMetaTable.$inferInsert;
+
+/**
  * Free-pool polish event log. Used by the quota engine to compute
  * refill-remaining in phase 4 (steady state) via a COUNT over the
  * last 5h. Super-token polishes do NOT insert a row here — the

@@ -26,7 +26,9 @@ import {
   accountsTable,
   sessionsTable,
   verificationTokensTable,
+  appUsersMetaTable,
 } from '@/lib/db/schema';
+import { buildInitialMeta } from '@/lib/quota/initial-meta';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(db, {
@@ -37,4 +39,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   }),
   providers: [Google],
   session: { strategy: 'database' },
+  events: {
+    // ADR-0005 §5 path A — atomic INSERT OR IGNORE, no TOCTOU window.
+    // Deliberately no try/catch: failure recovery belongs to the
+    // session callback's lazy path (D.4, §5 path B), and overlapping
+    // mechanisms make it impossible to tell which one saved a user.
+    async createUser({ user }) {
+      if (!user.id) return;
+      await db
+        .insert(appUsersMetaTable)
+        .values(buildInitialMeta(user.id))
+        .onConflictDoNothing({ target: appUsersMetaTable.userId });
+    },
+  },
 });
