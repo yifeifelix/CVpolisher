@@ -32,7 +32,7 @@ export function SessionIndicator() {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => signOut({ callbackUrl: "/" })}
+        onClick={() => signOut({ redirectTo: "/login" })}
       >
         Sign out
       </Button>
