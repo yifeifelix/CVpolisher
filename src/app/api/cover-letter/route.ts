@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
-import { getProvider } from "@/lib/ai/provider";
+import { getServerRoute } from "@/lib/ai/provider";
 import { buildCoverLetterPrompt } from "@/lib/prompts";
 import { getSession } from "@/lib/db";
 
 interface CoverLetterRequestBody {
   sessionId: string;
   polishedCV: string;
-  provider: string;
-  model: string;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -32,7 +30,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { sessionId, polishedCV, provider: providerName, model } = body;
+  const { sessionId, polishedCV } = body;
 
   if (!sessionId || typeof sessionId !== "string") {
     return NextResponse.json(
@@ -43,12 +41,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!polishedCV || typeof polishedCV !== "string") {
     return NextResponse.json(
       { error: "polishedCV is required" },
-      { status: 400 },
-    );
-  }
-  if (!providerName || !model) {
-    return NextResponse.json(
-      { error: "provider and model are required" },
       { status: 400 },
     );
   }
@@ -64,13 +56,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let provider;
+  // Server-side model routing per the signed-in user's tier.
+  let provider, model;
   try {
-    provider = getProvider(providerName);
+    ({ provider, model } = getServerRoute(authSession.user.tier));
   } catch (error: unknown) {
     return NextResponse.json(
       { error: getErrorMessage(error) },
-      { status: 400 },
+      { status: 500 },
     );
   }
 

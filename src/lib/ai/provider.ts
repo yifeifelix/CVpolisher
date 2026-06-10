@@ -96,3 +96,70 @@ export function getProvider(name: string): AIProvider {
 export function resetProviderRegistry(): void {
   _registry = null;
 }
+
+// ---------------------------------------------------------------------------
+// Server-side model routing (v1: the client no longer picks a model)
+// ---------------------------------------------------------------------------
+
+export interface ModelRoute {
+  providerName: string;
+  model: string;
+}
+
+/**
+ * Parse a "ProviderName:model-id" spec. Splits at the FIRST colon only —
+ * OpenRouter model ids legitimately contain colons (the ":free" suffix).
+ * Returns null when the spec has no colon or an empty side.
+ */
+export function parseModelRoute(spec: string): ModelRoute | null {
+  const idx = spec.indexOf(':');
+  if (idx <= 0 || idx === spec.length - 1) return null;
+  return { providerName: spec.slice(0, idx), model: spec.slice(idx + 1) };
+}
+
+/**
+ * Resolve which provider+model serves a polish request, server-side.
+ *
+ * Env contract:
+ * - POLISH_MODEL_FREE  — "Provider:model" used for free-tier users
+ * - POLISH_MODEL_PAID  — "Provider:model" used for paid-tier users;
+ *                        falls back to the free route when unset
+ *
+ * When no env route is set (or it names an unconfigured provider), falls
+ * back to the first configured provider's first model so dev setups keep
+ * working without extra config. Throws when no provider is configured.
+ */
+export function getServerRoute(tier: 'free' | 'paid' = 'free'): {
+  provider: AIProvider;
+  model: string;
+} {
+  const spec =
+    tier === 'paid'
+      ? (process.env.POLISH_MODEL_PAID ?? process.env.POLISH_MODEL_FREE)
+      : process.env.POLISH_MODEL_FREE;
+
+  if (spec) {
+    const route = parseModelRoute(spec);
+    if (route) {
+      const provider = getRegistry().find(
+        (p) => p.name === route.providerName,
+      );
+      if (provider) return { provider, model: route.model };
+      console.warn(
+        `[ai] POLISH_MODEL_${tier.toUpperCase()} names provider "${route.providerName}" which is not configured; falling back`,
+      );
+    } else {
+      console.warn(
+        `[ai] POLISH_MODEL_${tier.toUpperCase()} is not in "Provider:model" form: "${spec}"; falling back`,
+      );
+    }
+  }
+
+  const first = getRegistry()[0];
+  if (!first || first.models.length === 0) {
+    throw new Error(
+      'No AI provider is configured. Set at least one provider key in .env.local (see .env.local.example).',
+    );
+  }
+  return { provider: first, model: first.models[0] };
+}

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ProviderSelector } from "@/components/provider-selector";
 
 interface PolishResult {
   id: string;
@@ -15,13 +14,11 @@ export function CvInputForm() {
   const router = useRouter();
   const [cv, setCv] = useState("");
   const [jd, setJd] = useState("");
-  const [provider, setProvider] = useState("");
-  const [model, setModel] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!cv.trim() || !provider || !model) return;
+    if (!cv.trim()) return;
 
     setLoading(true);
     setError(null);
@@ -30,7 +27,7 @@ export function CvInputForm() {
       const response = await fetch("/api/polish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cv, jd: jd.trim() || null, provider, model }),
+        body: JSON.stringify({ cv, jd: jd.trim() || null }),
       });
 
       if (!response.ok) {
@@ -46,7 +43,7 @@ export function CvInputForm() {
     }
   }
 
-  const canSubmit = cv.trim().length > 0 && provider.length > 0 && model.length > 0 && !loading;
+  const canSubmit = cv.trim().length > 0 && !loading;
 
   return (
     <div className="space-y-8">
@@ -88,13 +85,10 @@ export function CvInputForm() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-6 border-t border-dashed border-border pt-6">
-        <ProviderSelector
-          provider={provider}
-          model={model}
-          onProviderChange={setProvider}
-          onModelChange={setModel}
-        />
+      <div className="flex flex-wrap items-baseline justify-between gap-6 border-t border-dashed border-border pt-6">
+        <p className="font-mono text-[0.65rem] tracking-[0.2em] uppercase text-muted-foreground">
+          The editor picks the model — upgrades sharpen the pen
+        </p>
 
         <Button
           onClick={handleSubmit}
