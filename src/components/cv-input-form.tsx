@@ -49,11 +49,14 @@ export function CvInputForm() {
   const canSubmit = cv.trim().length > 0 && provider.length > 0 && model.length > 0 && !loading;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cv-input" className="font-medium">
-            Your CV
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label
+            htmlFor="cv-input"
+            className="font-mono text-[0.65rem] font-medium tracking-[0.25em] uppercase"
+          >
+            Your CV <span className="text-accent">— required</span>
           </Label>
           <Textarea
             id="cv-input"
@@ -61,13 +64,18 @@ export function CvInputForm() {
             placeholder="Paste your CV here..."
             value={cv}
             onChange={(e) => setCv(e.target.value)}
-            className="resize-none text-sm leading-relaxed"
+            className="resize-none bg-background/60 text-sm leading-relaxed"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="jd-input" className="font-medium">
-            Job Description{" "}
-            <span className="text-slate-400 font-normal">(Optional)</span>
+        <div className="flex flex-col gap-2">
+          <Label
+            htmlFor="jd-input"
+            className="font-mono text-[0.65rem] font-medium tracking-[0.25em] uppercase"
+          >
+            Job description{" "}
+            <span className="font-normal text-muted-foreground normal-case tracking-normal">
+              (optional)
+            </span>
           </Label>
           <Textarea
             id="jd-input"
@@ -75,12 +83,12 @@ export function CvInputForm() {
             placeholder="Paste the job description here for targeted ATS optimisation..."
             value={jd}
             onChange={(e) => setJd(e.target.value)}
-            className="resize-none text-sm leading-relaxed"
+            className="resize-none bg-background/60 text-sm leading-relaxed"
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-6 border-t border-dashed border-border pt-6">
         <ProviderSelector
           provider={provider}
           model={model}
@@ -91,21 +99,22 @@ export function CvInputForm() {
         <Button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="h-8"
+          size="lg"
+          className="px-8 hover:bg-accent hover:text-accent-foreground"
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="inline-block size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Polishing...
+              <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Polishing…
             </span>
           ) : (
-            "Polish My CV"
+            "Polish my CV"
           )}
         </Button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 rounded-md bg-red-50 px-4 py-2">
+        <p className="border-l-2 border-accent bg-accent/8 px-4 py-2 text-sm text-accent">
           Error: {error}
         </p>
       )}

@@ -8,25 +8,37 @@ import { Button } from "@/components/ui/button";
  */
 export default function LoginPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-24">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-        Sign in to CV Polisher
-      </h1>
-      <p className="mt-2 text-center text-sm text-slate-500">
-        v1 supports Google sign-in only. Email + password is planned for a
-        later release.
+    <main className="relative z-10 mx-auto flex w-full max-w-md flex-col items-center px-6 pt-28 pb-24 text-center">
+      <p className="reveal font-mono text-[0.65rem] tracking-[0.3em] uppercase text-muted-foreground">
+        CV<span className="text-accent">·</span>Polisher — title page
       </p>
+
+      <h1 className="reveal reveal-2 mt-8 font-display text-5xl leading-tight font-medium tracking-tight">
+        The <em className="marker italic">editor</em> will see you now.
+      </h1>
+
+      <div className="reveal reveal-3 mt-8 h-[3px] w-16 bg-accent" />
+
+      <p className="reveal reveal-3 mt-8 text-sm leading-relaxed text-muted-foreground">
+        Sign in to start polishing. v1 supports Google only — email +
+        password is planned for a later edition.
+      </p>
+
       <form
-        className="mt-8"
+        className="reveal reveal-4 mt-10"
         action={async () => {
           "use server";
           await signIn("google", { redirectTo: "/" });
         }}
       >
-        <Button type="submit" size="lg">
-          Sign in with Google
+        <Button type="submit" size="lg" className="px-8">
+          Continue with Google
         </Button>
       </form>
+
+      <p className="reveal reveal-5 mt-16 font-mono text-[0.6rem] tracking-[0.2em] uppercase text-muted-foreground/70">
+        Six polishes on the house for new signatures
+      </p>
     </main>
   );
 }
