@@ -50,12 +50,19 @@ function createDbClient(): Db {
   // matters for Litestream replication (ADR-0001 §6 backup).
   sqlite.pragma("journal_mode = WAL");
 
+  // Set busy timeout to avoid SQLITE_BUSY errors when multiple processes
+  // or workers access the database concurrently.
+  sqlite.pragma("busy_timeout = 10000");
+
   const db = drizzle(sqlite, { schema });
 
   // Apply any pending migrations. First-run creates every table;
   // subsequent runs are no-ops. The migrations folder is generated
   // from schema.ts by `drizzle-kit generate`.
-  if (fs.existsSync(MIGRATIONS_FOLDER)) {
+  // Skip migrations during the Next.js production build phase to prevent
+  // parallel build workers from locking the database.
+  const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+  if (fs.existsSync(MIGRATIONS_FOLDER) && !isBuild) {
     migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
   }
 
