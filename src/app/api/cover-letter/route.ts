@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/auth";
 import { getProvider } from "@/lib/ai/provider";
 import { buildCoverLetterPrompt } from "@/lib/prompts";
 import { getSession } from "@/lib/db";
@@ -16,6 +17,13 @@ function getErrorMessage(error: unknown): string {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // ADR-0005 §7 — handler-level gate; 401, never a redirect.
+  // Named authSession: `session` below is the legacy polish-result row.
+  const authSession = await auth();
+  if (!authSession?.user?.id) {
+    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  }
+
   let body: CoverLetterRequestBody;
 
   try {

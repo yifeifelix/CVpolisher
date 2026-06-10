@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { auth } from '@/lib/auth/auth';
 import { getProvider } from '@/lib/ai/provider';
 import { buildPolishWithJDPrompt, buildPolishWithoutJDPrompt } from '@/lib/prompts';
 import { createSession } from '@/lib/db';
@@ -19,6 +20,13 @@ function getErrorMessage(error: unknown): string {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // ADR-0005 §7 — handler-level gate; 401, never a redirect. The UI
+  // owns bouncing anonymous users to /login.
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'unauthorised' }, { status: 401 });
+  }
+
   let body: PolishRequestBody;
 
   try {
