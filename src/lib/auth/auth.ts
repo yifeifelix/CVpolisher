@@ -126,7 +126,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.superTokens = meta.superTokens;
       session.user.bonusRemaining = meta.bonusRemaining;
       session.user.quotaPhase = derivePhase(state, now);
-      return session;
+      // `session` arrives as { ...dbSessionRow, user } — returning it
+      // verbatim leaks sessionToken/userId into the response JSON.
+      // Return only the public Session shape. (expires is typed as an
+      // ISO string but the database adapter hands us a Date at runtime.)
+      const expires: unknown = session.expires;
+      return {
+        user: session.user,
+        expires: expires instanceof Date ? expires.toISOString() : String(expires),
+      };
     },
   },
   events: {
