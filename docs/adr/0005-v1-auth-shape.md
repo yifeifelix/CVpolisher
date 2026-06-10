@@ -1,8 +1,8 @@
-_DRAFT — not yet committed. Pending review, then lands as part of D.2._
-
 # ADR-0005: v1 auth shape — Google OAuth only, database session
 
-- **Status**: Draft
+- **Status**: Accepted (2026-06-10 — end-to-end Google sign-in
+  verified manually per HANDOFF §E.3/§E.5: app_users_meta row minted
+  with bonus 6, session hydrates business fields, sign-out/in stable)
 - **Date**: 2026-05-08
 - **Deciders**: yifeifelix
 - **Relates to**: [ADR-0001 §2](./0001-saas-architecture.md),
