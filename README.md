@@ -102,7 +102,7 @@ It's created automatically on first run; delete it to reset.
 ### 6. Running
 
 ```bash
-npm test              # 28 engine tests, ~200ms — should be green
+npm test              # 53 unit tests, ~3s — should be green
 npm run dev           # dev server on http://localhost:3443
 npm run build         # production build
 npm run lint          # ESLint
@@ -113,6 +113,52 @@ npm run lint          # ESLint
 ```bash
 npm run db:studio     # open a browser UI to inspect the SQLite DB
 ```
+
+## Authentication (v1)
+
+v1 ships **Google OAuth only** — NextAuth v5, Drizzle adapter,
+database sessions. Spec: `docs/adr/0005-v1-auth-shape.md`. v2 adds
+email + password; see `docs/BRANCH_KIRO_STATUS.md` for the deferral
+rationale.
+
+### Google Cloud Console — OAuth client (one-time, human-only)
+
+1. Open <https://console.cloud.google.com/apis/credentials> and pick
+   (or create) a project.
+2. APIs & Services → OAuth consent screen → **External**, Testing
+   mode (limits sign-in to listed test emails until published).
+3. Scopes: `openid`, `email`, `profile`.
+4. Credentials → Create Credentials → OAuth client ID → **Web
+   application**.
+5. Authorised redirect URI:
+   `http://localhost:3443/api/auth/callback/google` (add the
+   production host's equivalent when it exists).
+6. Copy the Client ID and Client secret into `.env.local`
+   immediately — the secret is shown in full only once.
+
+If the console UI has drifted from these steps, the intent to hold
+onto is: *create an OAuth 2.0 Web application client with
+`/api/auth/callback/google` as a redirect URI*.
+
+### Required env vars
+
+| Key | How to get it |
+|---|---|
+| `AUTH_SECRET` | `openssl rand -base64 33` (or `npm exec auth secret`) |
+| `AUTH_GOOGLE_ID` | OAuth client from the Console steps above |
+| `AUTH_GOOGLE_SECRET` | Same dialog as the ID |
+
+All three must be set in `.env.local` before `npm run dev` for the
+sign-in flow to work. Leave `AUTH_TRUST_HOST` unset in dev (NextAuth
+auto-trusts when `NODE_ENV !== "production"`); set it to `true` in
+production behind a reverse proxy.
+
+### What's gated
+
+`POST /api/polish`, `/api/cover-letter` and `/api/download` return
+`401 {"error":"unauthorised"}` without a signed-in session. Sign in
+at `/login`. New users get the signup bonus on first sign-in
+(`events.createUser` → `app_users_meta`).
 
 ## Design reference — key decisions
 
