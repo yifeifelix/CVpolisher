@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/auth";
 import { generateCVDocx, generateCoverLetterDocx } from "@/lib/docx-generator";
 
 interface DownloadRequestBody {
@@ -15,6 +16,12 @@ const DOCX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // ADR-0005 §7 — handler-level gate; 401, never a redirect.
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "unauthorised" }, { status: 401 });
+  }
+
   let body: DownloadRequestBody;
 
   try {

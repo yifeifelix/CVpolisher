@@ -1,0 +1,332 @@
+import { describe, it, expect } from "vitest";
+import {
+  canConsume,
+  derivePhase,
+  recordConsumption,
+  type QuotaState,
+} from "./engine";
+
+describe("quota engine — canConsume", () => {
+  it("allows a newly registered free user to polish, drawing from the bonus pool", () => {
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 6,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 0,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, new Date("2026-05-01T10:00:00Z"));
+
+    expect(verdict).toEqual({ allowed: true, pool: "bonus" });
+  });
+
+  it("denies a free user whose bonus is gone, sliding timer is running, and super tokens are zero", () => {
+    // User exhausted bonus 1 hour ago; the 5h sliding timer is mid-flight.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: oneHourAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("falls through to super tokens when the free pool is unavailable", () => {
+    // Paid user in awaiting-refill. Free pool is empty but super tokens
+    // remain — the engine should pick super_tokens rather than denying.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: oneHourAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 4,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "super_tokens" });
+  });
+
+  it("allows a paid user in steady state to draw from refill when it has remaining capacity", () => {
+    // Paid refill cap is 5. One event 2h ago counts against the window,
+    // so 4 units of refill remain. Engine should pick refill (not super
+    // tokens), since the free pool is still viable.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const twoHoursAgo = new Date("2026-05-01T08:00:00Z");
+
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [twoHoursAgo],
+      todayFreepoolCount: 1,
+      superTokens: 4,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "refill" });
+  });
+
+  it("denies a free user whose daily cap is reached even if refill would otherwise allow it", () => {
+    // Free daily cap is 8. The events-in-window count shows 2, which
+    // would normally make refill=3-2=1 (allow), but today's counter is
+    // at 8 and the user has no super tokens, so the cap denies.
+    const now = new Date("2026-05-01T22:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T21:00:00Z");
+    const twoHoursAgo = new Date("2026-05-01T20:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [oneHourAgo, twoHoursAgo],
+      todayFreepoolCount: 8,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("delivers the first refill once the sliding timer has passed 5 hours", () => {
+    // Free user in phase 3: bonus exhausted 6h ago, timer was started
+    // at that moment, so timer + 5h < now. The free pool should open
+    // with pool=refill (not 'bonus', not 'super_tokens', not denial).
+    const now = new Date("2026-05-01T16:00:00Z");
+    const sixHoursAgo = new Date("2026-05-01T10:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "refill" });
+  });
+
+  it("prefers bonus over refill when both pools have capacity", () => {
+    // CONTEXT.md §Consumption order requires bonus to be consumed first.
+    // This state is implausible in steady operation (bonus>0 implies no
+    // refill events yet), but the invariant should hold regardless: if
+    // bonus has any remaining units, they are picked before refill.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 2,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [oneHourAgo],
+      todayFreepoolCount: 5,
+      superTokens: 0,
+    };
+
+    const verdict = canConsume(state, now);
+
+    expect(verdict).toEqual({ allowed: true, pool: "bonus" });
+  });
+});
+
+describe("quota engine — recordConsumption", () => {
+  it("emits decrement-bonus and increment-today when consuming from the bonus pool", () => {
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 6,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 0,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "bonus", now);
+
+    expect(mutations).toEqual([
+      { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+    ]);
+  });
+
+  it("emits insert-event and increment-today when consuming from refill in steady state", () => {
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 0,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "refill", now);
+
+    expect(mutations).toEqual([
+      { kind: "insert_free_event", at: now },
+      { kind: "increment_today_freepool" },
+    ]);
+  });
+
+  it("emits only decrement-super-tokens when consuming a super token", () => {
+    // Super-token polishes bypass quota_events and the daily cap
+    // (CONTEXT.md §Polish event + §Daily cap). The only mutation is
+    // the super_tokens counter.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "paid",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 15,
+      superTokens: 4,
+    };
+
+    const mutations = recordConsumption(state, "super_tokens", now);
+
+    expect(mutations).toEqual([{ kind: "decrement_super_tokens" }]);
+  });
+
+  it("starts the sliding timer when the last bonus unit is consumed", () => {
+    // CONTEXT.md §Quota lifecycle: when bonusRemaining transitions from
+    // 1 to 0, slidingTimerStartedAt becomes the timestamp of that last
+    // bonus polish. The engine must emit that side effect alongside the
+    // bonus decrement.
+    const now = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 1,
+      slidingTimerStartedAt: null,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 5,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "bonus", now);
+
+    expect(mutations).toEqual([
+      { kind: "decrement_bonus" },
+      { kind: "increment_today_freepool" },
+      { kind: "set_sliding_timer", at: now },
+    ]);
+  });
+
+  it("clears the sliding timer on the first refill tick", () => {
+    // CONTEXT.md §Quota lifecycle phase 3: at the first refill (timer
+    // has passed 5h), the timer is cleared. recordConsumption must emit
+    // clear_sliding_timer alongside the regular refill mutations when
+    // slidingTimerStartedAt was non-null.
+    const now = new Date("2026-05-01T16:00:00Z");
+    const sixHoursAgo = new Date("2026-05-01T10:00:00Z");
+
+    const state: QuotaState = {
+      tier: "free",
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+      recentFreepoolEvents: [],
+      todayFreepoolCount: 6,
+      superTokens: 0,
+    };
+
+    const mutations = recordConsumption(state, "refill", now);
+
+    expect(mutations).toEqual([
+      { kind: "insert_free_event", at: now },
+      { kind: "increment_today_freepool" },
+      { kind: "clear_sliding_timer" },
+    ]);
+  });
+});
+
+// Descriptive tests (ADR-0005 §6) — the four lifecycle phases as
+// defined by CONTEXT.md §Quota lifecycle, restated as a derivation
+// table in the ADR. These pin the phase boundaries, including the
+// exact 5h edge.
+describe("quota engine — derivePhase", () => {
+  const base: Omit<QuotaState, "bonusRemaining" | "slidingTimerStartedAt"> = {
+    tier: "free",
+    recentFreepoolEvents: [],
+    todayFreepoolCount: 0,
+    superTokens: 0,
+  };
+
+  it("reports 'bonus' while bonusRemaining is positive", () => {
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 3,
+      slidingTimerStartedAt: null,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe("bonus");
+  });
+
+  it("reports 'awaiting-refill' while the sliding timer is mid-window", () => {
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: oneHourAgo,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe(
+      "awaiting-refill",
+    );
+  });
+
+  it("reports 'first-refill' once the timer has passed the 5h window", () => {
+    const sixHoursAgo = new Date("2026-05-01T04:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe(
+      "first-refill",
+    );
+  });
+
+  it("treats exactly 5h after timer start as 'first-refill' (inclusive edge)", () => {
+    // Same inclusive boundary as the engine's slidingTimerOpen: at
+    // precisely timerStart + 5h the refill is available, so the phase
+    // flips at >= rather than >.
+    const timerStart = new Date("2026-05-01T05:00:00Z");
+    const exactlyFiveHoursLater = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: timerStart,
+    };
+
+    expect(derivePhase(state, exactlyFiveHoursLater)).toBe("first-refill");
+  });
+
+  it("reports 'steady' when bonus is gone and no timer is running", () => {
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe("steady");
+  });
+});

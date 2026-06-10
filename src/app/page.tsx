@@ -1,17 +1,21 @@
 import { CvInputForm } from "@/components/cv-input-form";
 import { HistoryList } from "@/components/history-list";
+import { SessionIndicator } from "@/components/session-indicator";
 import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          CV Polisher
-        </h1>
-        <p className="mt-1 text-base text-slate-500">
-          Polish your CV with AI-powered ATS optimisation
-        </p>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            CV Polisher
+          </h1>
+          <p className="mt-1 text-base text-slate-500">
+            Polish your CV with AI-powered ATS optimisation
+          </p>
+        </div>
+        <SessionIndicator />
       </header>
 
       <CvInputForm />

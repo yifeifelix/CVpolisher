@@ -1,3 +1,28 @@
+/**
+ * @deprecated
+ *
+ * This module is the legacy LAN-tool persistence layer that owns a
+ * `sessions` table storing raw CV / JD / AI-result content. ADR-0001
+ * §6 explicitly drops this table: the content-free SaaS design never
+ * persists CV or JD text.
+ *
+ * Forward direction: `src/lib/db/schema.ts` + `src/lib/db/index.ts`.
+ *
+ * This file is kept intact during the schema-landing session so the
+ * existing routes (/api/polish, /api/history, /api/result/[id],
+ * /api/cover-letter, /api/download) keep compiling. Those routes are
+ * being retired in the Phase 1 "result page refactor" slice scheduled
+ * for the NextAuth wiring session — at that point this file is
+ * deleted and the `@/lib/db` import path resolves to `db/index.ts`.
+ *
+ * Do not add new callers. New code must import from `@/lib/db`
+ * (which currently still resolves to this file, but will resolve to
+ * the Drizzle client after this file is deleted). See
+ * KIRO_BRANCH_SUMMARY §9 trap 5 for why this kind of "waiting for a
+ * later removal" negative clause is risky — hence this explicit
+ * deprecation banner rather than a silent leave-in-place.
+ */
+
 import Database from "better-sqlite3";
 import path from "path";
 
