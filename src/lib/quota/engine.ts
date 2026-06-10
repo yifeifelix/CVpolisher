@@ -11,7 +11,7 @@
  */
 
 /** The 5-hour refill window, expressed as milliseconds. */
-const REFILL_WINDOW_MS = 5 * 60 * 60 * 1000;
+export const REFILL_WINDOW_MS = 5 * 60 * 60 * 1000;
 
 /** Per-tier refill cap, per CONTEXT.md §Tier. */
 function refillCap(tier: "free" | "paid"): number {
@@ -73,6 +73,28 @@ export type QuotaMutation =
   | { kind: "decrement_super_tokens" }
   | { kind: "set_sliding_timer"; at: Date }
   | { kind: "clear_sliding_timer" };
+
+export type QuotaPhase =
+  | "bonus"
+  | "awaiting-refill"
+  | "first-refill"
+  | "steady";
+
+/**
+ * Derive the user's lifecycle phase from quota state. Pure function;
+ * phase definitions per CONTEXT.md §Quota lifecycle, derivation table
+ * pinned in ADR-0005 §6. The 5h edge is inclusive (>=), matching
+ * slidingTimerOpen.
+ */
+export function derivePhase(state: QuotaState, now: Date): QuotaPhase {
+  if (state.bonusRemaining > 0) return "bonus";
+  if (state.slidingTimerStartedAt !== null) {
+    return slidingTimerOpen(state.slidingTimerStartedAt, now)
+      ? "first-refill"
+      : "awaiting-refill";
+  }
+  return "steady";
+}
 
 export function canConsume(state: QuotaState, now: Date): PolishVerdict {
   // Daily cap gates the free pool (bonus + refill). Super tokens bypass

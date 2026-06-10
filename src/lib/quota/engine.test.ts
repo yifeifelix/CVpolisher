@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   canConsume,
+  derivePhase,
   recordConsumption,
   type QuotaState,
 } from "./engine";
@@ -253,5 +254,79 @@ describe("quota engine — recordConsumption", () => {
       { kind: "increment_today_freepool" },
       { kind: "clear_sliding_timer" },
     ]);
+  });
+});
+
+// Descriptive tests (ADR-0005 §6) — the four lifecycle phases as
+// defined by CONTEXT.md §Quota lifecycle, restated as a derivation
+// table in the ADR. These pin the phase boundaries, including the
+// exact 5h edge.
+describe("quota engine — derivePhase", () => {
+  const base: Omit<QuotaState, "bonusRemaining" | "slidingTimerStartedAt"> = {
+    tier: "free",
+    recentFreepoolEvents: [],
+    todayFreepoolCount: 0,
+    superTokens: 0,
+  };
+
+  it("reports 'bonus' while bonusRemaining is positive", () => {
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 3,
+      slidingTimerStartedAt: null,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe("bonus");
+  });
+
+  it("reports 'awaiting-refill' while the sliding timer is mid-window", () => {
+    const oneHourAgo = new Date("2026-05-01T09:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: oneHourAgo,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe(
+      "awaiting-refill",
+    );
+  });
+
+  it("reports 'first-refill' once the timer has passed the 5h window", () => {
+    const sixHoursAgo = new Date("2026-05-01T04:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: sixHoursAgo,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe(
+      "first-refill",
+    );
+  });
+
+  it("treats exactly 5h after timer start as 'first-refill' (inclusive edge)", () => {
+    // Same inclusive boundary as the engine's slidingTimerOpen: at
+    // precisely timerStart + 5h the refill is available, so the phase
+    // flips at >= rather than >.
+    const timerStart = new Date("2026-05-01T05:00:00Z");
+    const exactlyFiveHoursLater = new Date("2026-05-01T10:00:00Z");
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: timerStart,
+    };
+
+    expect(derivePhase(state, exactlyFiveHoursLater)).toBe("first-refill");
+  });
+
+  it("reports 'steady' when bonus is gone and no timer is running", () => {
+    const state: QuotaState = {
+      ...base,
+      bonusRemaining: 0,
+      slidingTimerStartedAt: null,
+    };
+
+    expect(derivePhase(state, new Date("2026-05-01T10:00:00Z"))).toBe("steady");
   });
 });
