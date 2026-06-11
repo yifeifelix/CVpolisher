@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import { signIn } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 
@@ -8,36 +9,40 @@ import { Button } from "@/components/ui/button";
  */
 export default function LoginPage() {
   return (
-    <main className="relative z-10 mx-auto flex w-full max-w-md flex-col items-center px-6 pt-28 pb-24 text-center">
-      <p className="reveal font-mono text-[0.65rem] tracking-[0.3em] uppercase text-muted-foreground">
-        CV<span className="text-accent">·</span>Polisher — title page
-      </p>
+    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-16">
+      <div className="reveal flex flex-col items-center">
+        <span className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
+          <FileText className="size-5" aria-hidden="true" />
+        </span>
+        <p className="mt-3 font-display text-base font-semibold tracking-tight">
+          CV Polisher
+        </p>
+      </div>
 
-      <h1 className="reveal reveal-2 mt-8 font-display text-5xl leading-tight font-medium tracking-tight">
-        The <em className="marker italic">editor</em> will see you now.
-      </h1>
+      <div className="panel-raised reveal reveal-2 mt-8 w-full max-w-sm px-6 py-8 text-center sm:px-8">
+        <h1 className="font-display text-xl font-semibold tracking-tight">
+          Sign in to start polishing
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          v1 supports Google only — email + password is planned for a later
+          release.
+        </p>
 
-      <div className="reveal reveal-3 mt-8 h-[3px] w-16 bg-accent" />
+        <form
+          className="mt-6"
+          action={async () => {
+            "use server";
+            await signIn("google", { redirectTo: "/" });
+          }}
+        >
+          <Button type="submit" size="lg" className="w-full">
+            Continue with Google
+          </Button>
+        </form>
+      </div>
 
-      <p className="reveal reveal-3 mt-8 text-sm leading-relaxed text-muted-foreground">
-        Sign in to start polishing. v1 supports Google only — email +
-        password is planned for a later edition.
-      </p>
-
-      <form
-        className="reveal reveal-4 mt-10"
-        action={async () => {
-          "use server";
-          await signIn("google", { redirectTo: "/" });
-        }}
-      >
-        <Button type="submit" size="lg" className="px-8">
-          Continue with Google
-        </Button>
-      </form>
-
-      <p className="reveal reveal-5 mt-16 font-mono text-[0.6rem] tracking-[0.2em] uppercase text-muted-foreground/70">
-        Six polishes on the house for new signatures
+      <p className="reveal reveal-3 mt-6 text-xs text-muted-foreground">
+        New accounts include six free polishes.
       </p>
     </main>
   );

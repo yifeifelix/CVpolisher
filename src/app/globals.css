@@ -12,6 +12,10 @@
   --font-heading: var(--font-display);
   --font-display: var(--font-display);
   --color-highlight: var(--highlight);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,75 +55,93 @@
 }
 
 :root {
-  /* "The Editor's Desk" — warm paper, ink, proofreader's vermilion.
-     Manuscript side is serif (Fraunces), machine/ATS side is mono. */
-  --background: oklch(0.962 0.014 85);          /* warm paper */
-  --foreground: oklch(0.24 0.015 55);           /* warm ink */
-  --card: oklch(0.99 0.007 90);                 /* fresh sheet */
-  --card-foreground: oklch(0.24 0.015 55);
-  --popover: oklch(0.99 0.007 90);
-  --popover-foreground: oklch(0.24 0.015 55);
-  --primary: oklch(0.26 0.015 55);              /* ink block */
-  --primary-foreground: oklch(0.97 0.01 88);
-  --secondary: oklch(0.93 0.015 85);
-  --secondary-foreground: oklch(0.26 0.015 55);
-  --muted: oklch(0.93 0.015 85);
-  --muted-foreground: oklch(0.51 0.02 60);
-  --accent: oklch(0.55 0.19 35);                /* proofreader's vermilion */
-  --accent-foreground: oklch(0.97 0.01 88);
-  --destructive: oklch(0.55 0.19 35);
-  --border: oklch(0.87 0.018 80);
-  --input: oklch(0.84 0.02 78);
-  --ring: oklch(0.55 0.19 35);
-  --highlight: oklch(0.87 0.135 92);            /* marker amber */
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.25rem;                            /* sharp, print-like edges */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* "The Hiring Suite" — cool neutral surfaces, one trust-blue primary,
+     hairline borders, whisper-level elevation. Built for reading CVs,
+     not for decoration. */
+  --background: oklch(0.977 0.003 250);          /* cool off-white */
+  --foreground: oklch(0.245 0.024 262);          /* deep slate ink */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.245 0.024 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.245 0.024 262);
+  --primary: oklch(0.43 0.112 257);              /* trust blue */
+  --primary-foreground: oklch(0.985 0.002 250);
+  --secondary: oklch(0.952 0.007 252);
+  --secondary-foreground: oklch(0.32 0.04 259);
+  --muted: oklch(0.955 0.005 252);
+  --muted-foreground: oklch(0.51 0.022 259);
+  --accent: oklch(0.945 0.013 252);              /* quiet hover tint */
+  --accent-foreground: oklch(0.32 0.06 257);
+  --destructive: oklch(0.546 0.197 26);
+  --success: oklch(0.535 0.122 155);
+  --success-foreground: oklch(0.985 0.002 250);
+  --warning: oklch(0.624 0.124 72);
+  --warning-foreground: oklch(0.985 0.002 250);
+  --border: oklch(0.912 0.006 252);
+  --input: oklch(0.872 0.009 252);
+  --ring: oklch(0.55 0.11 257);
+  --highlight: oklch(0.93 0.028 252);            /* selection-blue wash */
+  --chart-1: oklch(0.43 0.112 257);
+  --chart-2: oklch(0.535 0.122 155);
+  --chart-3: oklch(0.624 0.124 72);
+  --chart-4: oklch(0.51 0.022 259);
+  --chart-5: oklch(0.7 0.06 257);
+  --radius: 0.5rem;
+  --shadow-card: 0 1px 2px oklch(0.245 0.024 262 / 0.05);
+  --shadow-raised:
+    0 1px 2px oklch(0.245 0.024 262 / 0.05),
+    0 2px 8px oklch(0.245 0.024 262 / 0.04);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.245 0.024 262);
+  --sidebar-primary: oklch(0.43 0.112 257);
+  --sidebar-primary-foreground: oklch(0.985 0.002 250);
+  --sidebar-accent: oklch(0.945 0.013 252);
+  --sidebar-accent-foreground: oklch(0.32 0.06 257);
+  --sidebar-border: oklch(0.912 0.006 252);
+  --sidebar-ring: oklch(0.55 0.11 257);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.185 0.016 262);
+  --foreground: oklch(0.93 0.006 252);
+  --card: oklch(0.225 0.018 262);
+  --card-foreground: oklch(0.93 0.006 252);
+  --popover: oklch(0.225 0.018 262);
+  --popover-foreground: oklch(0.93 0.006 252);
+  --primary: oklch(0.68 0.1 257);
+  --primary-foreground: oklch(0.16 0.018 262);
+  --secondary: oklch(0.28 0.02 261);
+  --secondary-foreground: oklch(0.9 0.008 252);
+  --muted: oklch(0.27 0.018 261);
+  --muted-foreground: oklch(0.69 0.016 256);
+  --accent: oklch(0.3 0.024 259);
+  --accent-foreground: oklch(0.9 0.01 252);
+  --destructive: oklch(0.66 0.18 26);
+  --success: oklch(0.66 0.12 155);
+  --success-foreground: oklch(0.16 0.018 262);
+  --warning: oklch(0.72 0.12 75);
+  --warning-foreground: oklch(0.16 0.018 262);
+  --border: oklch(0.32 0.02 261);
+  --input: oklch(0.37 0.022 261);
+  --ring: oklch(0.62 0.1 257);
+  --highlight: oklch(0.33 0.045 257);
+  --chart-1: oklch(0.68 0.1 257);
+  --chart-2: oklch(0.66 0.12 155);
+  --chart-3: oklch(0.72 0.12 75);
+  --chart-4: oklch(0.69 0.016 256);
+  --chart-5: oklch(0.5 0.06 257);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-raised:
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 2px 8px oklch(0 0 0 / 0.25);
+  --sidebar: oklch(0.225 0.018 262);
+  --sidebar-foreground: oklch(0.93 0.006 252);
+  --sidebar-primary: oklch(0.68 0.1 257);
+  --sidebar-primary-foreground: oklch(0.16 0.018 262);
+  --sidebar-accent: oklch(0.3 0.024 259);
+  --sidebar-accent-foreground: oklch(0.9 0.01 252);
+  --sidebar-border: oklch(0.32 0.02 261);
+  --sidebar-ring: oklch(0.62 0.1 257);
 }
 
 @layer base {
@@ -135,42 +157,37 @@
 }
 
 /* ---------------------------------------------------------------- */
-/* The Editor's Desk — atmosphere & motion                          */
+/* The Hiring Suite — restrained surface & motion utilities          */
 /* ---------------------------------------------------------------- */
 
-/* Paper grain + the notebook margin rule. Two fixed pseudo-layers on
-   body keep every page on the same desk without per-page markup. */
-.paper-desk {
-  position: relative;
+/* Standard panel: white card, hairline border, whisper shadow. */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
 }
 
-.paper-desk::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+.panel-raised {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-raised);
 }
 
-.paper-desk::after {
-  content: "";
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: clamp(1.25rem, 4vw, 4.5rem);
-  z-index: 0;
-  pointer-events: none;
-  border-left: 1px solid
-    color-mix(in oklch, var(--accent) 28%, transparent);
+/* Document surface: where CV text lives. Reads like a sheet of A4. */
+.doc-surface {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
 }
 
-/* Staggered manuscript reveal — one orchestrated page load. */
+/* One restrained page-load reveal — short rise, quick settle. */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -179,58 +196,12 @@
 }
 
 .reveal {
-  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.reveal-2 { animation-delay: 0.12s; }
-.reveal-3 { animation-delay: 0.24s; }
-.reveal-4 { animation-delay: 0.36s; }
-.reveal-5 { animation-delay: 0.5s; }
-
-/* Marker sweep behind the key word in the headline. */
-@keyframes sweep {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
-
-.marker {
-  position: relative;
-  white-space: nowrap;
-  /* Fraunces italic overhang crowds the next word; give it air. */
-  margin-right: 0.08em;
-}
-
-.marker::before {
-  content: "";
-  position: absolute;
-  inset: 58% -0.12em 0.02em;
-  z-index: -1;
-  transform-origin: left center;
-  transform: scaleX(0);
-  background: var(--highlight);
-  animation: sweep 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.7s both;
-}
-
-/* Proofreader's underline that draws itself in on hover. */
-.proof-link {
-  background-image: linear-gradient(var(--accent), var(--accent));
-  background-size: 0% 1.5px;
-  background-position: 0 100%;
-  background-repeat: no-repeat;
-  transition: background-size 0.25s ease;
-}
-
-.proof-link:hover {
-  background-size: 100% 1.5px;
-}
-
-/* A fresh sheet of paper: hard offset shadow like stacked stock. */
-.sheet {
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow:
-    0 1px 0 color-mix(in oklch, var(--foreground) 6%, transparent),
-    6px 6px 0 color-mix(in oklch, var(--foreground) 7%, transparent);
-}
+.reveal-2 { animation-delay: 0.07s; }
+.reveal-3 { animation-delay: 0.14s; }
+.reveal-4 { animation-delay: 0.21s; }
+.reveal-5 { animation-delay: 0.28s; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal,
@@ -239,9 +210,5 @@
   .reveal-4,
   .reveal-5 {
     animation: none;
-  }
-  .marker::before {
-    animation: none;
-    transform: scaleX(1);
   }
 }

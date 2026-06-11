@@ -3,8 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  CircleAlert,
+  Download,
+  LoaderCircle,
+} from "lucide-react";
+import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { CoverLetterEditor } from "@/components/cover-letter-editor";
 
 interface SessionData {
@@ -129,67 +135,90 @@ export default function CoverLetterPage() {
 
   if (generating) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-4">
-          Generating Cover Letter
-        </h1>
-        <div className="flex items-center gap-3 text-slate-500">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-          <p>
-            Creating a tailored cover letter based on your polished CV and the
-            job description...
-          </p>
-        </div>
-      </main>
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            Generating cover letter
+          </h1>
+          <div className="mt-4 flex items-center gap-3 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            <p>
+              Creating a tailored cover letter based on your polished CV and
+              the job description...
+            </p>
+          </div>
+        </main>
+      </>
     );
   }
 
   if (error) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-4">
-          Cover Letter
-        </h1>
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button variant="outline" onClick={() => router.push(`/result/${id}`)}>
-          Back to CV Review
-        </Button>
-      </main>
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            Cover letter
+          </h1>
+          <div className="mt-4 mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>{error}</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push(`/result/${id}`)}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back to CV review
+          </Button>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Cover Letter
-        </h1>
-        <Link href={`/result/${id}`}>
-          <Button variant="outline">Back to CV Review</Button>
-        </Link>
-      </header>
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <header className="reveal flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight">
+              Cover letter
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Drafted from your polished CV and the job description.
+            </p>
+          </div>
+          <Link href={`/result/${id}`}>
+            <Button variant="outline">
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Back to CV review
+            </Button>
+          </Link>
+        </header>
 
-      <section>
-        <CoverLetterEditor value={coverLetter} onChange={setCoverLetter} />
-      </section>
+        <section aria-label="Cover letter editor" className="reveal reveal-2">
+          <div className="panel-raised overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3">
+              <p className="text-xs text-muted-foreground">
+                Edit freely before downloading — this text is yours.
+              </p>
+              <Button onClick={handleDownload} disabled={downloading}>
+                <Download className="size-4" aria-hidden="true" />
+                {downloading ? "Downloading..." : "Download .docx"}
+              </Button>
+            </div>
+            <div className="p-4 sm:p-6">
+              <CoverLetterEditor value={coverLetter} onChange={setCoverLetter} />
+            </div>
+          </div>
+        </section>
 
-      <Separator />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleDownload} disabled={downloading}>
-          {downloading ? "Downloading..." : "Download Cover Letter (.docx)"}
-        </Button>
-
-        <Link href={`/result/${id}`}>
-          <Button variant="ghost">Back to CV Review</Button>
-        </Link>
-      </div>
-
-      {downloadError && (
-        <p className="text-sm text-red-500 rounded-md bg-red-50 px-4 py-2">
-          Download error: {downloadError}
-        </p>
-      )}
-    </main>
+        {downloadError && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>Download error: {downloadError}</p>
+          </div>
+        )}
+      </main>
+    </>
   );
 }

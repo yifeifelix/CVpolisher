@@ -13,8 +13,9 @@ export function CoverLetterEditor({ value, onChange }: CoverLetterEditorProps) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       rows={16}
-      className="w-full text-sm leading-relaxed resize-none"
+      className="min-h-[24rem] w-full resize-y bg-card px-4 py-3 text-sm leading-7"
       placeholder="Cover letter will appear here..."
+      aria-label="Cover letter editor"
     />
   );
 }

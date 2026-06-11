@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, CircleAlert, Download, Mail } from "lucide-react";
+import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { AtsScoreCard } from "@/components/ats-score-card";
 import { KeywordsPanel } from "@/components/keywords-panel";
 import { SkillsChecklist } from "@/components/skills-checklist";
@@ -122,22 +123,30 @@ export default function ResultPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="text-slate-500">Loading result...</p>
-      </main>
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <p className="text-sm text-muted-foreground">Loading result...</p>
+        </main>
+      </>
     );
   }
 
   if (fetchError || !session) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        <p className="text-red-500 mb-4">
-          {fetchError ?? "Result not found."}
-        </p>
-        <Button variant="outline" onClick={() => router.push("/")}>
-          Back to Home
-        </Button>
-      </main>
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>{fetchError ?? "Result not found."}</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push("/")}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back to workbench
+          </Button>
+        </main>
+      </>
     );
   }
 
@@ -145,80 +154,88 @@ export default function ResultPage() {
   const hasJd = !!jdInput;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Polish Results
-          </h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Model: {session.provider} / {session.model}
-          </p>
-        </div>
-        <Link href="/">
-          <Button variant="outline">Back to Home</Button>
-        </Link>
-      </header>
-
-      {hasJd && (
-        <>
-          {result.atsScore !== undefined && (
-            <div className="max-w-xs">
-              <AtsScoreCard score={result.atsScore} />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <KeywordsPanel keywords={result.topKeywords ?? []} />
-              <SkillsChecklist skills={result.mustHaveSkills ?? []} />
-            </div>
-            <div>
-              <SuggestionsPanel suggestions={result.suggestions ?? []} />
-            </div>
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <header className="reveal flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-semibold tracking-tight">
+              Polish results
+            </h1>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              {session.provider} / {session.model}
+            </p>
           </div>
-
-          <Separator />
-        </>
-      )}
-
-      {!hasJd && result.suggestions && result.suggestions.length > 0 && (
-        <>
-          <SuggestionsPanel suggestions={result.suggestions} />
-          <Separator />
-        </>
-      )}
-
-      <section>
-        <h2 className="text-xl font-semibold text-slate-800 mb-4">
-          Polished CV
-        </h2>
-        <CvPreview value={polishedCV} onChange={setPolishedCV} />
-      </section>
-
-      <Separator />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={handleDownloadCv} disabled={downloadingCv}>
-          {downloadingCv ? "Downloading..." : "Download CV (.docx)"}
-        </Button>
+          <Link href="/">
+            <Button variant="outline">
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Back to workbench
+            </Button>
+          </Link>
+        </header>
 
         {hasJd && (
-          <Button variant="outline" onClick={handleCreateCoverLetter}>
-            Create Cover Letter
-          </Button>
+          <section
+            aria-label="Match analysis"
+            className="reveal reveal-2 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+          >
+            <div className="space-y-4">
+              {result.atsScore !== undefined && (
+                <AtsScoreCard score={result.atsScore} />
+              )}
+              <KeywordsPanel keywords={result.topKeywords ?? []} />
+            </div>
+            <SkillsChecklist skills={result.mustHaveSkills ?? []} />
+            <SuggestionsPanel suggestions={result.suggestions ?? []} />
+          </section>
         )}
 
-        <Link href="/">
-          <Button variant="ghost">Back to Home</Button>
-        </Link>
-      </div>
+        {!hasJd && result.suggestions && result.suggestions.length > 0 && (
+          <section aria-label="Improvement suggestions" className="reveal reveal-2">
+            <SuggestionsPanel suggestions={result.suggestions} />
+          </section>
+        )}
 
-      {downloadError && (
-        <p className="text-sm text-red-500 rounded-md bg-red-50 px-4 py-2">
-          Download error: {downloadError}
-        </p>
-      )}
-    </main>
+        <section aria-labelledby="polished-cv-heading" className="reveal reveal-3">
+          <div className="panel-raised overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-5 py-3">
+              <div>
+                <h2
+                  id="polished-cv-heading"
+                  className="font-display text-base font-semibold tracking-tight"
+                >
+                  Polished CV
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Edit freely before downloading — this text is yours.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasJd && (
+                  <Button variant="outline" onClick={handleCreateCoverLetter}>
+                    <Mail className="size-4" aria-hidden="true" />
+                    Create cover letter
+                  </Button>
+                )}
+                <Button onClick={handleDownloadCv} disabled={downloadingCv}>
+                  <Download className="size-4" aria-hidden="true" />
+                  {downloadingCv ? "Downloading..." : "Download .docx"}
+                </Button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6">
+              <CvPreview value={polishedCV} onChange={setPolishedCV} />
+            </div>
+          </div>
+        </section>
+
+        {downloadError && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>Download error: {downloadError}</p>
+          </div>
+        )}
+      </main>
+    </>
   );
 }

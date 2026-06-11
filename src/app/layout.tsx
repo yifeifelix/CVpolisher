@@ -1,22 +1,26 @@
 import type { Metadata } from "next";
-import { Fraunces, Spline_Sans, Spline_Sans_Mono } from "next/font/google";
+import {
+  IBM_Plex_Mono,
+  Public_Sans,
+  Schibsted_Grotesk,
+} from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
-const fraunces = Fraunces({
+const schibstedGrotesk = Schibsted_Grotesk({
   variable: "--font-display",
   subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
 });
 
-const splineSans = Spline_Sans({
+const publicSans = Public_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const splineSansMono = Spline_Sans_Mono({
+const plexMono = IBM_Plex_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -32,11 +36,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${splineSans.variable} ${splineSansMono.variable} h-full antialiased`}
+      className={`${schibstedGrotesk.variable} ${publicSans.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body
         suppressHydrationWarning
-        className="paper-desk min-h-full flex flex-col bg-background text-foreground"
+        className="min-h-full flex flex-col bg-background text-foreground"
       >
         <SessionProvider>{children}</SessionProvider>
       </body>
