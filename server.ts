@@ -14,7 +14,14 @@ const KEY_PATH = path.join(process.cwd(), 'certs', 'server.key');
 
 const hasCerts = fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH);
 
-const app = next({ dev: isDev });
+// Pass port but NOT hostname. Next builds absolute request URLs from
+// hostname+port (next-server.js attachRequestMeta); with hostname omitted
+// it falls back to "localhost", with HOST passed it would bake the bind
+// address (0.0.0.0) into OAuth callback URLs, and with port also omitted
+// it defaults to localhost:3000. Verified: URLs come out as
+// http://localhost:<PORT> regardless of the request's Host header, which
+// matches the registered Google redirect URI through the SSH tunnel.
+const app = next({ dev: isDev, port: PORT });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
