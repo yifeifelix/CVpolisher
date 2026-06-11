@@ -80,7 +80,7 @@ export function ProviderSelector({
   if (loading) {
     return (
       <div className="flex items-center gap-4">
-        <p className="text-sm text-slate-400">Loading providers...</p>
+        <p className="text-sm text-muted-foreground">Loading providers...</p>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export function ProviderSelector({
   if (error) {
     return (
       <div className="flex items-center gap-4">
-        <p className="text-sm text-red-500">Error: {error}</p>
+        <p className="text-sm text-destructive">Error: {error}</p>
       </div>
     );
   }
@@ -96,11 +96,11 @@ export function ProviderSelector({
   return (
     <div className="flex flex-wrap items-end gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="provider-select" className="text-sm font-medium">
+        <Label htmlFor="provider-select" className="text-sm font-semibold">
           Provider
         </Label>
         <Select value={provider} onValueChange={handleProviderChange}>
-          <SelectTrigger id="provider-select" className="w-40">
+          <SelectTrigger id="provider-select" className="w-40 bg-card">
             <SelectValue placeholder="Select provider" />
           </SelectTrigger>
           <SelectContent>
@@ -114,7 +114,7 @@ export function ProviderSelector({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="model-select" className="text-sm font-medium">
+        <Label htmlFor="model-select" className="text-sm font-semibold">
           Model
         </Label>
         <Select
@@ -122,12 +122,12 @@ export function ProviderSelector({
           onValueChange={handleModelChange}
           disabled={availableModels.length === 0}
         >
-          <SelectTrigger id="model-select" className="w-56">
+          <SelectTrigger id="model-select" className="w-56 bg-card font-mono text-xs">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
           <SelectContent>
             {availableModels.map((m) => (
-              <SelectItem key={m} value={m}>
+              <SelectItem key={m} value={m} className="font-mono text-xs">
                 {m}
               </SelectItem>
             ))}

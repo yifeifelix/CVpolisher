@@ -1,58 +1,112 @@
+import { AppHeader } from "@/components/app-header";
 import { CvInputForm } from "@/components/cv-input-form";
 import { HistoryList } from "@/components/history-list";
-import { SessionIndicator } from "@/components/session-indicator";
+import { FileSearch, ListChecks, PenLine } from "lucide-react";
+
+const workflowSteps = [
+  {
+    icon: FileSearch,
+    title: "Reads the role",
+    description: "Extracts the keywords and skills the job description asks for.",
+  },
+  {
+    icon: PenLine,
+    title: "Rewrites your evidence",
+    description: "Sharpens weak bullets into specific, quantified statements.",
+  },
+  {
+    icon: ListChecks,
+    title: "Scores the match",
+    description: "Shows your ATS score, matched skills, and what's missing.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24 sm:px-10 lg:px-16">
-      <header className="reveal flex items-baseline justify-between gap-4 pt-8">
-        <p className="font-mono text-xs font-medium tracking-[0.22em] uppercase">
-          CV<span className="text-accent">·</span>Polisher
-        </p>
-        <SessionIndicator />
-      </header>
-
-      <section className="pt-20 pb-16 sm:pt-28">
-        <p className="reveal reveal-2 font-mono text-[0.7rem] tracking-[0.3em] uppercase text-accent">
-          AI-assisted CV editing — Nº 001
-        </p>
-        <h1 className="reveal reveal-3 mt-6 max-w-3xl font-display text-5xl leading-[1.04] font-medium tracking-tight text-balance sm:text-7xl">
-          A rough draft goes in. A <em className="marker italic">polished</em>{" "}
-          CV comes out.
-        </h1>
-        <p className="reveal reveal-4 mt-8 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          Paste your CV, add the job description, and let the editor rework
-          every line for the ATS parsers that read it first — and the humans
-          who read it second.
-        </p>
-      </section>
-
-      <section className="reveal reveal-5">
-        <div className="sheet relative rounded-[var(--radius)] p-6 sm:p-10">
-          <div className="absolute inset-x-0 top-0 h-[3px] bg-accent" />
-          <p className="absolute -top-3 left-6 bg-background px-2 font-mono text-[0.65rem] tracking-[0.25em] uppercase text-muted-foreground sm:left-10">
-            Draft Nº 1 — working copy
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 lg:px-8">
+        <section className="reveal pt-12 pb-10 sm:pt-16">
+          <p className="text-xs font-semibold tracking-[0.14em] uppercase text-primary">
+            AI CV workbench
           </p>
-          <CvInputForm />
-        </div>
-      </section>
+          <h1 className="mt-3 max-w-2xl font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+            Polish your CV for the role in front of you.
+          </h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
+            Paste your CV and the job description. CV Polisher rewrites the
+            wording, aligns it with the role&apos;s keywords, and reports the
+            ATS match — without inventing anything you didn&apos;t do.
+          </p>
 
-      <section className="mt-24">
-        <div className="mb-6 flex items-baseline gap-4">
-          <h2 className="font-display text-3xl font-medium italic">
-            Past drafts
-          </h2>
-          <div className="h-px flex-1 translate-y-[-0.35em] bg-border" />
-        </div>
-        <HistoryList />
-      </section>
+          <dl className="mt-8 grid gap-4 sm:grid-cols-3">
+            {workflowSteps.map((step) => (
+              <div key={step.title} className="flex items-start gap-3">
+                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-highlight text-primary">
+                  <step.icon className="size-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <dt className="text-sm font-semibold">{step.title}</dt>
+                  <dd className="mt-0.5 text-sm leading-6 text-muted-foreground">
+                    {step.description}
+                  </dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        </section>
 
-      <footer className="mt-28 border-t border-border pt-6">
-        <p className="font-mono text-[0.65rem] tracking-[0.2em] uppercase text-muted-foreground">
-          Set in Fraunces &amp; Spline Sans — edited by machines, read by
-          people
-        </p>
+        <section
+          id="polish-workbench"
+          aria-labelledby="workbench-heading"
+          className="reveal reveal-2 scroll-mt-20"
+        >
+          <div className="panel-raised overflow-hidden">
+            <div className="border-b border-border bg-muted/40 px-5 py-4 sm:px-8">
+              <h2
+                id="workbench-heading"
+                className="font-display text-lg font-semibold tracking-tight"
+              >
+                New polish
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Your CV stays the source of truth — the model only sharpens
+                how it reads.
+              </p>
+            </div>
+            <div className="p-5 sm:p-8">
+              <CvInputForm />
+            </div>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="history-heading"
+          className="reveal reveal-3 mt-14"
+        >
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <h2
+                id="history-heading"
+                className="font-display text-lg font-semibold tracking-tight"
+              >
+                Recent polishes
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Pick up where you left off.
+              </p>
+            </div>
+          </div>
+          <HistoryList />
+        </section>
+      </main>
+
+      <footer className="mt-auto border-t border-border bg-card">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 text-xs text-muted-foreground sm:px-6 lg:px-8">
+          <p>CV Polisher — AI-assisted, human-approved.</p>
+          <p>Nothing is fabricated. Every edit is yours to keep or reject.</p>
+        </div>
       </footer>
-    </div>
+    </>
   );
 }

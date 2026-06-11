@@ -22,15 +22,15 @@ export function BulletComparison({ bullets, onChange }: BulletComparisonProps) {
 
   if (bullets.length === 0) {
     return (
-      <p className="text-sm text-slate-400 py-4">No bullet points to compare.</p>
+      <p className="text-sm text-muted-foreground py-4">No bullet points to compare.</p>
     );
   }
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 mb-2">
-        <p className="text-sm font-semibold text-slate-600">Original</p>
-        <p className="text-sm font-semibold text-slate-600">Polished (editable)</p>
+        <p className="text-sm font-semibold">Original</p>
+        <p className="text-sm font-semibold">Polished (editable)</p>
       </div>
       {bullets.map((bullet, index) => (
         <div key={index} className="grid grid-cols-2 gap-4">
@@ -38,7 +38,7 @@ export function BulletComparison({ bullets, onChange }: BulletComparisonProps) {
             value={bullet.original}
             readOnly
             rows={3}
-            className="bg-slate-100 text-slate-600 resize-none text-sm"
+            className="bg-muted text-muted-foreground resize-none text-sm"
           />
           <Textarea
             value={bullet.polished}

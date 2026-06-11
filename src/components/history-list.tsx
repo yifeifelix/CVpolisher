@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 
 interface HistoryItem {
   id: string;
   created_at: string;
   jd_snippet: string | null;
   atsScore: number | null;
+}
+
+function scoreChipClasses(score: number): string {
+  if (score >= 75) return "bg-success/10 text-success";
+  if (score >= 50) return "bg-warning/10 text-warning";
+  return "bg-destructive/10 text-destructive";
 }
 
 export function HistoryList() {
@@ -45,59 +50,50 @@ export function HistoryList() {
   }
 
   if (loading) {
-    return (
-      <p className="font-mono text-xs tracking-wider text-muted-foreground">
-        Pulling drafts from the drawer…
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Loading history…</p>;
   }
 
   if (error) {
-    return <p className="text-sm text-accent">Error loading history: {error}</p>;
+    return (
+      <p className="text-sm text-destructive">Error loading history: {error}</p>
+    );
   }
 
   if (items.length === 0) {
     return (
-      <p className="font-mono text-xs tracking-wider text-muted-foreground">
-        Nothing in the drawer yet — your first polish lands here.
-      </p>
+      <div className="panel px-5 py-8 text-center">
+        <p className="text-sm text-muted-foreground">
+          No polishes yet — your first one will appear here.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
-        <Card
+        <button
           key={item.id}
-          className="group cursor-pointer rounded-[var(--radius)] ring-border transition-all hover:-translate-y-0.5 hover:shadow-[4px_4px_0_color-mix(in_oklch,var(--foreground)_10%,transparent)]"
+          type="button"
           onClick={() => router.push(`/result/${item.id}`)}
+          className="panel group cursor-pointer p-4 text-left transition-colors hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          <CardContent className="py-3">
-            <p className="mb-2 font-mono text-[0.65rem] tracking-[0.15em] uppercase text-muted-foreground">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
               {formatDate(item.created_at)}
             </p>
-            <p className="mb-3 line-clamp-2 text-sm leading-snug">
-              {item.jd_snippet ?? "General polish"}
-            </p>
             {item.atsScore !== null && (
-              <p className="font-mono text-[0.7rem] tracking-wider uppercase text-muted-foreground">
-                ATS{" "}
-                <span
-                  className={
-                    item.atsScore >= 75
-                      ? "font-semibold text-emerald-700"
-                      : item.atsScore >= 50
-                        ? "font-semibold text-amber-600"
-                        : "font-semibold text-accent"
-                  }
-                >
-                  {item.atsScore}
-                </span>
-                <span className="ml-1 text-muted-foreground/60">/100</span>
-              </p>
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-xs font-semibold ${scoreChipClasses(item.atsScore)}`}
+              >
+                ATS {item.atsScore}
+              </span>
             )}
-          </CardContent>
-        </Card>
+          </div>
+          <p className="mt-2 line-clamp-2 text-sm leading-snug font-medium text-foreground">
+            {item.jd_snippet ?? "General polish"}
+          </p>
+        </button>
       ))}
     </div>
   );

@@ -9,15 +9,13 @@ export function KeywordsPanel({ keywords }: KeywordsPanelProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-slate-700">
-          Top ATS Keywords
-        </CardTitle>
+        <CardTitle>Top ATS keywords</CardTitle>
       </CardHeader>
       <CardContent>
         {keywords.length === 0 ? (
-          <p className="text-sm text-slate-400">No keywords found.</p>
+          <p className="text-sm text-muted-foreground">No keywords found.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {keywords.map((keyword) => (
               <Badge key={keyword} variant="secondary">
                 {keyword}

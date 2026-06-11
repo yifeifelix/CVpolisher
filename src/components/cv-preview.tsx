@@ -13,8 +13,9 @@ export function CvPreview({ value, onChange }: CvPreviewProps) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       rows={24}
-      className="resize-y text-sm font-mono leading-relaxed"
+      className="min-h-[32rem] resize-y bg-card px-4 py-3 text-sm leading-7"
       placeholder="Polished CV will appear here..."
+      aria-label="Polished CV editor"
     />
   );
 }
