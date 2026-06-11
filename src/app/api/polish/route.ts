@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { auth } from '@/lib/auth/auth';
-import { getProvider } from '@/lib/ai/provider';
+import { getServerRoute } from '@/lib/ai/provider';
 import { buildPolishWithJDPrompt, buildPolishWithoutJDPrompt } from '@/lib/prompts';
 import { createSession } from '@/lib/db';
 
 interface PolishRequestBody {
   cv: string;
   jd?: string | null;
-  provider: string;
-  model: string;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -35,23 +33,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { cv, jd, provider: providerName, model } = body;
+  const { cv, jd } = body;
 
   if (!cv || typeof cv !== 'string' || cv.trim().length === 0) {
     return NextResponse.json({ error: 'cv is required' }, { status: 400 });
   }
-  if (!providerName || typeof providerName !== 'string') {
-    return NextResponse.json({ error: 'provider is required' }, { status: 400 });
-  }
-  if (!model || typeof model !== 'string') {
-    return NextResponse.json({ error: 'model is required' }, { status: 400 });
-  }
 
-  let provider;
+  // The server picks the model — free tier rides the configured free
+  // route, paid tier the paid route (POLISH_MODEL_FREE / _PAID).
+  let provider, model;
   try {
-    provider = getProvider(providerName);
+    ({ provider, model } = getServerRoute(session.user.tier));
   } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 
   const prompt =
@@ -95,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: sessionId,
       cvInput: cv,
       jdInput: jd && jd.trim().length > 0 ? jd : null,
-      provider: providerName,
+      provider: provider.name,
       model,
       result: JSON.stringify(parsedResult),
     });

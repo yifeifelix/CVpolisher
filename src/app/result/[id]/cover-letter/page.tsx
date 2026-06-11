@@ -73,15 +73,13 @@ export default function CoverLetterPage() {
           );
         }
 
-        // Call cover letter generation API
+        // Call cover letter generation API — the server picks the model
         const response = await fetch("/api/cover-letter", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: id,
             polishedCV,
-            provider: sessionData.provider,
-            model: sessionData.model,
           }),
         });
 
